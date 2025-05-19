@@ -26,7 +26,7 @@ To install and deploy the TACACSGUI application, follow these steps:
 1. Ensure you have Python3 installed on your system.
 2. Clone the repository to your local machine.
 3. Navigate to the root directory of the repository.
-4. Create a `requirements.txt` file in the root directory with the necessary Python dependencies.
+4. Modify config.py to suit your environment
 5. Run the deployment script:
 
    ```bash

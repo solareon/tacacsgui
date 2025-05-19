@@ -1,14 +1,17 @@
-import crypt
 import sys
 import subprocess
 import hashlib
 import os
 import secrets
 from datetime import datetime
-from config import BASE_DIR, TACPLUS_CONFIG, TACPLUS_SYSTEMD_SERVICE
+from config import BASE_DIR, TACPLUS_APP, TACPLUS_CONFIG, TACPLUS_SYSTEMD_SERVICE
 
 def encrypt_password(password):
-	return crypt.crypt(password, crypt.mksalt(crypt.METHOD_MD5))
+    # Use PBKDF2-HMAC-SHA256 with a random salt
+    salt = secrets.token_bytes(16)
+    hash_bytes = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100_000)
+    # Store as hex for both salt and hash, separated by $
+    return f"{salt.hex()}${hash_bytes.hex()}"
 
 def csrf_token():
 	return secrets.token_hex(nbytes=16)
@@ -18,13 +21,17 @@ def is_valid_session(session, token):
 		return False
 	if session.get("scrf_token", None) != token:
 		return False
-	return True;
+	return True
 
-def check_password(password_hash, salt, password):
-	m = hashlib.sha256()
-	m.update(password + salt)
-	obtained = m.hexdigest();
-	return obtained == password_hash
+def check_password(password_hash, password):
+    try:
+        salt_hex, stored_hash_hex = password_hash.split('$', 1)
+        salt = bytes.fromhex(salt_hex)
+        stored_hash = bytes.fromhex(stored_hash_hex)
+    except Exception:
+        return False
+    hash_bytes = hashlib.pbkdf2_hmac('sha256', bytes(password), salt, 100_000)
+    return hash_bytes == stored_hash
 
 def build_configuration_file(
 	system, configuration, 
@@ -34,10 +41,10 @@ def build_configuration_file(
 	"""
 	Builds configuration file
 	"""
-	config_template = open(config_template_file, "r").read();
-	group_template = open(group_template_file, "r").read();
-	user_template = open(user_template_file, "r").read();
-	command_template = open(command_template_file, "r").read();
+	config_template = open(config_template_file, "r").read()
+	group_template = open(group_template_file, "r").read()
+	user_template = open(user_template_file, "r").read()
+	command_template = open(command_template_file, "r").read()
 
 	config_template = config_template.replace("##listen_port", str(system.port_number))
 	config_template = config_template.replace("##authentication_log", "/".join([system.log_files_path, "authentication.log"]))
@@ -48,9 +55,9 @@ def build_configuration_file(
 	config_template = config_template.replace("##default_host", system.host_ip)
 	config_template = config_template.replace("##authentication_key", system.auth_key)
 
-	groups_compiled = "";
+	groups_compiled = ""
 	for group in groups:
-		group_template_current = "%s" % group_template;
+		group_template_current = "%s" % group_template
 		
 		group_template_current = group_template_current.replace("##group_name", group["group"].name)
 		
@@ -66,7 +73,7 @@ def build_configuration_file(
 		group_template_current = group_template_current.replace("##valid_until", group["group"].valid_until.strftime("%Y-%m-%d"))
 		group_template_current = group_template_current.replace("##privilege_level", str(group["group"].default_privilege))
 		
-		commands_compiled = "";
+		commands_compiled = ""
 
 		commands_groupped = {}
 		for command in group["commands"]:
@@ -78,7 +85,7 @@ def build_configuration_file(
 			acl_command += "client = " + ("permit" if acl.access == "allow" else "deny") + " " + acl.ip + "/" + acl.mask + "\n"
 
 		for command_name in commands_groupped.keys():
-			command_template_current = "%s" % command_template;
+			command_template_current = "%s" % command_template
 			command_template_current = command_template_current.replace("##command_name", command_name)	
 			permit_regex = ""
 			deny_regex = ""
@@ -91,20 +98,20 @@ def build_configuration_file(
 					deny_regex += "deny .\n"
 			command_template_current = command_template_current.replace("##permit", permit_regex)
 			command_template_current = command_template_current.replace("##deny", deny_regex)
-			commands_compiled += command_template_current + "\n\n";
+			commands_compiled += command_template_current + "\n\n"
 		group_template_current = group_template_current.replace("##cmds", commands_compiled)
 		group_template_current = group_template_current.replace("##access", acl_command)		
-		groups_compiled += group_template_current + "\n";
+		groups_compiled += group_template_current + "\n"
 
-	users_compiled = "";
+	users_compiled = ""
 	for user in users:
-		user_template_current = "%s" % user_template;
+		user_template_current = "%s" % user_template
 		
 		user_template_current = user_template_current.replace("##username", user["user"].name)
 		user_template_current = user_template_current.replace("##encrypted_password", str(user["user"].password))
-		user_groups_compiled = "";
+		user_groups_compiled = ""
 		for group in user["groups"]:
-			user_groups_compiled += "member = " + group.name + "\n";
+			user_groups_compiled += "member = " + group.name + "\n"
 		
 		acl_command = ""
 		for acl in user["acls"]:
@@ -112,7 +119,7 @@ def build_configuration_file(
 
 		user_template_current = user_template_current.replace("##groups", user_groups_compiled)
 		user_template_current = user_template_current.replace("##access", acl_command)
-		users_compiled += user_template_current + "\n";
+		users_compiled += user_template_current + "\n"
 
 	print(groups_compiled)
 	print(users_compiled)
@@ -120,13 +127,13 @@ def build_configuration_file(
 	config_template = config_template.replace("##users", users_compiled)
 
 	with open(output_file, "w+") as fd:
-		fd.write(config_template);
-		fd.flush();
-		fd.close();
-	return;
+		fd.write(config_template)
+		fd.flush()
+		fd.close()
+	return
 
 def verify_the_configuration(configuration_file):
-	if subprocess.call(["/usr/local/sbin/tac_plus", "-P", configuration_file]) == 0:
+	if subprocess.call([TACPLUS_APP, "-P", configuration_file]) == 0:
 		return True
 	return False
 
@@ -158,7 +165,7 @@ def update_tac_plus_configuration():
             result = subprocess.run(["systemctl", "list-units", "--type=service"], capture_output=True, text=True)
             if TACPLUS_SYSTEMD_SERVICE in result.stdout:
                 print(f"Systemd service {TACPLUS_SYSTEMD_SERVICE} found. Restarting...")
-                subprocess.run(["systemctl", "restart", "TACPLUS_SYSTEMD_SERVICE"], check=True)
+                subprocess.run(["systemctl", "restart", TACPLUS_SYSTEMD_SERVICE], check=True)
             else:
                 print("Using init.d to manage tac_plus...")
                 subprocess.run(["/etc/init.d/tac_plus", "stop"], check=True)

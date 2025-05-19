@@ -28,7 +28,7 @@ sqlite_conn = sqlite3.connect(sqlite_file)
 sqlite_cursor = sqlite_conn.cursor()
 
 # Define tables to migrate
-tables = ['auth_user', 'tac_plus_system']
+tables = ['auth_user', 'tac_plus_system', 'tac_plus_cfg', 'tac_plus_users', 'tac_plus_config_groups', 'tac_plus_config_users', 'tac_plus_commands', 'tac_plus_group_commands', 'tac_plus_user_groups']
 
 for table in tables:
     # Fetch data from MySQL
