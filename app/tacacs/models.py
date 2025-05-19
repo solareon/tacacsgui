@@ -11,7 +11,7 @@ class Base(db.Model):
 
 class System(Base):
 
-	__tablename__ = "tac_plus_system";
+	__tablename__ = "tac_plus_system"
 
 	id                 = db.Column(db.Integer,      primary_key=True)
 
@@ -22,9 +22,9 @@ class System(Base):
 	cfg_file_path      = db.Column(db.String(128),  nullable=False, default="/usr/local/etc/tac_plus.cfg")
 
 	# Listen port
-	port_number        = db.Column(db.Integer,      nullable=False, default=49);
+	port_number        = db.Column(db.Integer,      nullable=False, default=49)
 
-	# Mavis module password verificatin script
+	# Mavis module password verification script
 	mavis_exec         = db.Column(db.String(128),  nullable=False, default="/usr/local/lib/mavis/mavis_tacplus_passwd.pl")
 
 	# Host IP
@@ -51,7 +51,7 @@ class Configuration(Base):
 
 class ConfigurationGroups(Base):
 
-	__tablename__ = "tac_plus_config_groups";
+	__tablename__ = "tac_plus_config_groups"
 
 	id                 = db.Column(db.Integer,      primary_key=True)
 	group_id           = db.Column(db.Integer, db.ForeignKey('tac_plus_groups.id'), nullable=False)
@@ -62,7 +62,7 @@ class ConfigurationGroups(Base):
 
 class ConfigurationUsers(Base):
 
-	__tablename__ = "tac_plus_config_users";
+	__tablename__ = "tac_plus_config_users"
 
 	id                 = db.Column(db.Integer,      primary_key=True)
 	user_id            = db.Column(db.Integer, db.ForeignKey('tac_plus_users.id'), nullable=False)

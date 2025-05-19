@@ -5,8 +5,12 @@ DEBUG = True
 import os
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
+TACPLUS_CONFIG = "/usr/local/etc/tac_plus.cfg"
+TACPLUS_SYSTEMD_SERVICE = "tac_plus.service"
+
 # Define the database 
-SQLALCHEMY_DATABASE_URI = "mysql://root:NigAfDov@localhost/tacacsgui"
+# Replace MySQL connection string with SQLite
+SQLALCHEMY_DATABASE_URI = "sqlite:///tacacsgui.db"
 DATABASE_CONNECT_OPTIONS = {}
 
 # Application threads. A common general assumption is

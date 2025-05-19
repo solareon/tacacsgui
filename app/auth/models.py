@@ -18,13 +18,13 @@ class User(Base):
     __tablename__ = 'auth_user'
 
     # User Name
-    username = db.Column(db.String(128),  nullable=False)
+    username = db.Column(db.String(128), nullable=False)
 
-    # Identification Data: password
-    password = db.Column(db.String(192),  nullable=False)
+    # Password
+    password = db.Column(db.String(192), nullable=False)
 
     # Salt
-    salt = db.Column(db.String(128),      nullable=False)
+    salt = db.Column(db.String(128), nullable=False)
 
     # New instance instantiation procedure
     def __init__(self, username, password):

@@ -1,41 +1,39 @@
 #!/bin/bash
+
+# Prompt user for installation directory
+read -p "Enter the directory where you want to install TACACSGUI (default: /opt/tacacsgui): " TARGET_DIR
+TARGET_DIR=${TARGET_DIR:-/opt/tacacsgui}
+
+# Update and install Python3
 sudo apt-get update
-sudo apt-get install python3
-sudo apt-get install python3-pip
-sudo apt-get install mysql-server
-sudo apt-get install mysql-client
+sudo apt-get install -y python3 python3-venv python3-pip
 
-echo "Would you like to configure MySQL? (Y/N)"
-read answer
-if [[ "$answer" == "Y" || "$answer" == "y" ]]
-then
-	echo "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'NigAfDov';" > reset.sql
-	sudo mysql -uroot < reset.sql
-	rm reset.sql
+# Create a virtual environment in the target directory
+echo "Creating virtual environment in $TARGET_DIR"
+sudo mkdir -p $TARGET_DIR
+sudo python3 -m venv $TARGET_DIR/venv
+
+# Activate the virtual environment and install requirements
+source $TARGET_DIR/venv/bin/activate
+if [ -f "requirements.txt" ]; then
+    echo "Installing requirements from requirements.txt"
+    pip install -r requirements.txt
+else
+    echo "requirements.txt not found. Please ensure it exists in the root directory."
+    exit 1
 fi
 
-sudo apt-get install python3-mysqldb
+deactivate
 
-sudo pip3 install flask
-sudo pip3 install flask_wtf
-sudo pip3 install flask-sqlalchemy
-sudo pip3 install apscheduler
+# Copy application files to the target directory
+sudo rsync -rv ../app ../run.py ../config.py $TARGET_DIR/
+sudo chown www-data:www-data -R $TARGET_DIR
 
-echo "Creating TACACSGUI folder"
-sudo mkdir -p /opt/tacacsgui
-sudo chown www-data:www-data -R /opt/tacacsgui
-
-echo "Would you like to reset the database TACACSGUI? (Y/N)"
-read answer
-if [[ "$answer" == "Y" || "$answer" == "y" ]]
-then
-	mysql -uroot -pNigAfDov < ../database/schema.sql
-fi
-
-sudo rsync -rv ../app ../run.py ../config.py ../deployment/synchronizer.sh /opt/tacacsgui/
-sudo chown www-data:www-data -R /opt/tacacsgui
+# Move systemd service file and enable the service
 sudo rsync -rv ../systemd/tacacsgui.service /etc/systemd/system/
 sudo systemctl enable tacacsgui
 sudo systemctl start tacacsgui
 echo "* * * * *	root	/bin/bash /opt/tacacsgui/synchronizer.sh" >> /etc/crontab
 sudo service cron reload
+
+echo "Deployment completed successfully."
