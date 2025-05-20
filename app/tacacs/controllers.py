@@ -1,5 +1,5 @@
 from flask import Blueprint, request, render_template, \
-                  flash, g, session, redirect, url_for, jsonify
+                  session, redirect, url_for, jsonify
 from app import db
 from config import TACPLUS_CONFIG
 
@@ -8,13 +8,14 @@ import os
 import re
 import secrets
 from datetime import datetime
+import ipaddress
 
 # Database models
 from app.tacacs.models import System
 from app.tacacs.models import Configuration
 from app.tacacs.models import ConfigurationGroups
 from app.tacacs.models import ConfigurationUsers
-from app.tacacs.models import Group
+from app.tacacs.models import TacacsGroup
 from app.tacacs.models import GroupCommands
 from app.tacacs.models import TacacsUserGroups
 from app.tacacs.models import Command
@@ -23,8 +24,6 @@ from app.tacacs.models import UserACL
 from app.tacacs.models import GroupACL
 
 # Utils
-from app.utils.tacacs.utils import encrypt_password
-from app.utils.tacacs.utils import deploy_configuration
 from app.utils.tacacs.utils import verify_the_configuration
 from app.utils.render import render_configuration
 
@@ -73,12 +72,12 @@ def edit_configuration():
 	if request.method == "GET":
 		try:
 			configuration = Configuration.query.filter_by(id=request.args.get("config_id", None)).one()
-			configuration_groups = ConfigurationGroups.query.filter_by(configuration_id=configuration.id).join(Group).all()
+			configuration_groups = ConfigurationGroups.query.filter_by(configuration_id=configuration.id).join(TacacsGroup).all()
 			groups = [cg.group for cg in configuration_groups]
 			configuration_users = ConfigurationUsers.query.filter_by(configuration_id=configuration.id).join(TacacsUser).all()
 			users = [cu.user for cu in configuration_users]
 			# Fetch all groups and users for selection
-			all_groups = Group.query.all()
+			all_groups = TacacsGroup.query.all()
 			all_users = TacacsUser.query.all()
 			return render_template(
 				"tacacs/edit_configuration.html",
@@ -114,7 +113,7 @@ def delete_configuration():
 def groups():
 	if not session.get("user_id", None):
 		return redirect(url_for('auth.signin'))
-	groups = Group.query.all()
+	groups = TacacsGroup.query.all()
 	return render_template("tacacs/groups.html", groups = groups)
 
 @mod_tac_plus.route("/users/", methods=["GET"])
@@ -187,31 +186,35 @@ def add_command():
 		return redirect(url_for('tac_plus.commands'))
 
 
-@mod_tac_plus.route("/add_group/", methods=["GET", "POST"])
+@mod_tac_plus.route("/add_group/", methods=["POST"])
 def add_group():
 	if not session.get("user_id", None):
 		return redirect(url_for('auth.signin'))
-	if request.method == "GET":
-		return render_template("tacacs/add_group.html")
+	group = TacacsGroup()
+	group.name = request.form.get("group_name", "")
+	valid_until = request.form.get("valid_until", "")
+	if valid_until:
+		try:
+			group.valid_until = datetime.strptime(valid_until, "%Y-%m-%d")
+		except Exception:
+			group.valid_until = None
 	else:
-		group = Group()
-		group.name = request.form.get("group_name", "")
-		group.valid_until = datetime.strptime(request.form.get("valid_until", ""), "%Y-%m-%d")
-		group.cmd_default_policy = request.form.get("cmd_default_policy", "")
-		group.default_privilege = request.form.get("default_privilege", "")
-		group.is_enable_pass = True if request.form.get("is_enable_pass", "") == "on" else False
-		group.deny_default_service = True if request.form.get("deny_default_service", "") == "on" else False
-		group.enable_pass = request.form.get("enable_pass", "")
-		db.session.add(group)
-		db.session.commit()
-		return redirect(url_for('tac_plus.groups'))
+		group.valid_until = None
+	group.cmd_default_policy = request.form.get("cmd_default_policy", "")
+	group.default_privilege = request.form.get("default_privilege", "")
+	group.is_enable_pass = True if request.form.get("is_enable_pass", "") == "on" else False
+	group.deny_default_service = True if request.form.get("deny_default_service", "") == "on" else False
+	group.enable_pass = request.form.get("enable_pass", "")
+	db.session.add(group)
+	db.session.commit()
+	return redirect(url_for('tac_plus.groups'))
 
-@mod_tac_plus.route("/delete_group/", methods=["GET"])
+@mod_tac_plus.route("/delete_group/", methods=["POST"])
 def delete_group():
 	if not session.get("user_id", None):
 		return redirect(url_for('auth.signin'))
 	try:
-		group = Group.query.filter_by(id=request.args.get("group_id", "")).one()
+		group = TacacsGroup.query.filter_by(id=request.form.get("group_id", "")).one()
 		if group:
 			db.session.delete(group)
 			db.session.commit()
@@ -219,26 +222,27 @@ def delete_group():
 		pass
 	return redirect(url_for('tac_plus.groups'))
 
-@mod_tac_plus.route("/add_command_to_group/", methods=["GET"])
+@mod_tac_plus.route("/add_command_to_group/", methods=["POST"])
 def add_command_to_group():
-	if not session.get("user_id", None):
-		return jsonify([]), 403
-	found = False
-	try:
-		group_command = GroupCommands.query.filter_by(group_id = request.args.get("group_id", None), \
-			command_id = request.args.get("command_id", None)).all()
-		if len(group_command) > 0:
-			found = True
-	except Exception as e:
-		pass
-	if found:
-		return jsonify([])
-	group_command = GroupCommands()
-	group_command.group_id = request.args.get("group_id", None)
-	group_command.command_id = request.args.get("command_id", None)
-	db.session.add(group_command)
-	db.session.commit()
-	return jsonify([])
+    if not session.get("user_id", None):
+        return jsonify([]), 403
+    group_id = request.form.get("group_id", None)
+    command_id = request.form.get("command_id", None)
+    found = False
+    try:
+        group_command = GroupCommands.query.filter_by(group_id=group_id, command_id=command_id).all()
+        if len(group_command) > 0:
+            found = True
+    except Exception as e:
+        pass
+    if found:
+        return jsonify([])
+    group_command = GroupCommands()
+    group_command.group_id = group_id
+    group_command.command_id = command_id
+    db.session.add(group_command)
+    db.session.commit()
+    return redirect(url_for('tac_plus.edit_group', group_id=group_id))
 
 @mod_tac_plus.route("/add_group_to_configuration/", methods=["POST"])
 def add_group_to_configuration():
@@ -283,7 +287,7 @@ def add_user_to_configuration():
         db.session.commit()
     return redirect(url_for('tac_plus.edit_configuration', config_id=config_id))
 
-@mod_tac_plus.route("/delete_command_from_group/", methods=["GET"])
+@mod_tac_plus.route("/delete_command_from_group/", methods=["POST"])
 def delete_command_from_group():
 	if not session.get("user_id", None):
 		return redirect(url_for('auth.signin'))
@@ -298,50 +302,46 @@ def delete_command_from_group():
 		db.session.commit()
 	return redirect(url_for('tac_plus.edit_group', group_id = request.args.get("group_id", "")))
 
-@mod_tac_plus.route("/delete_group_from_configuration/", methods=["GET"])
+@mod_tac_plus.route("/delete_group_from_configuration/", methods=["POST"])
 def delete_group_from_configuration():
-	if not session.get("user_id", None):
-		return redirect(url_for('auth.signin'))
-	if not session.get("csrf_token", None):
-		return jsonify([]), 403
-	#if request.args.get("csrf_token", None) != session["csrf_token"]:
-	#	return jsonify([]), 403
-	group_configuration = ConfigurationGroups.query.filter_by(group_id=request.args.get("group_id", ""), \
-		configuration_id=request.args.get("config_id", "")).one()
-	if group_configuration:
-		db.session.delete(group_configuration)
-		db.session.commit()
-	return redirect(url_for('tac_plus.edit_configuration', config_id = request.args.get("config_id", "")))
+    if not session.get("user_id", None):
+        return redirect(url_for('auth.signin'))
+    if not session.get("csrf_token", None):
+        return jsonify([]), 403
+    group_id = request.form.get("group_id", "")
+    config_id = request.form.get("config_id", "")
+    group_configuration = ConfigurationGroups.query.filter_by(group_id=group_id, configuration_id=config_id).one()
+    if group_configuration:
+        db.session.delete(group_configuration)
+        db.session.commit()
+    return redirect(url_for('tac_plus.edit_configuration', config_id=config_id))
 
-@mod_tac_plus.route("/delete_user_from_configuration/", methods=["GET"])
+@mod_tac_plus.route("/delete_user_from_configuration/", methods=["POST"])
 def delete_user_from_configuration():
-	if not session.get("user_id", None):
-		return redirect(url_for('auth.signin'))
-	if not session.get("csrf_token", None):
-		return jsonify([]), 403
-	#if request.args.get("csrf_token", None) != session["csrf_token"]:
-	#	return jsonify([]), 403
-	user_configuration = ConfigurationUsers.query.filter_by(user_id=request.args.get("user_id", ""), \
-		configuration_id=request.args.get("config_id", "")).one()
-	if user_configuration:
-		db.session.delete(user_configuration)
-		db.session.commit()
-	return redirect(url_for('tac_plus.edit_configuration', config_id = request.args.get("config_id", "")))
+    if not session.get("user_id", None):
+        return redirect(url_for('auth.signin'))
+    if not session.get("csrf_token", None):
+        return jsonify([]), 403
+    user_id = request.form.get("user_id", "")
+    config_id = request.form.get("config_id", "")
+    user_configuration = ConfigurationUsers.query.filter_by(user_id=user_id, configuration_id=config_id).one()
+    if user_configuration:
+        db.session.delete(user_configuration)
+        db.session.commit()
+    return redirect(url_for('tac_plus.edit_configuration', config_id=config_id))
 
-@mod_tac_plus.route("/add_group_to_user/", methods=["GET"])
+@mod_tac_plus.route("/add_group_to_user/", methods=["POST"])
 def add_group_to_user():
-	if not session.get("user_id", None):
-		return jsonify([]), 403
-	if not session.get("csrf_token", None):
-		return jsonify([]), 403
-	#if request.args.get("csrf_token", None) != session["csrf_token"]:
-	#	return jsonify([]), 403
-	user_groups = TacacsUserGroups()
-	user_groups.user_id = request.args.get("user_id", None)
-	user_groups.group_id = request.args.get("group_id", None)
-	db.session.add(user_groups)
-	db.session.commit()
-	return jsonify([])
+    if not session.get("user_id", None):
+        return jsonify([]), 403
+    user_id = request.form.get("user_id", None)
+    group_id = request.form.get("group_id", None)
+    user_groups = TacacsUserGroups()
+    user_groups.user_id = user_id
+    user_groups.group_id = group_id
+    db.session.add(user_groups)
+    db.session.commit()
+    return redirect(url_for('tac_plus.edit_user', user_id=user_id))
 
 @mod_tac_plus.route("/delete_group_from_user/", methods=["GET"])
 def delete_group_from_user():
@@ -354,19 +354,16 @@ def delete_group_from_user():
 		db.session.commit()
 	return redirect(url_for('tac_plus.edit_user', user_id = request.args.get("user_id", "")))
 
-@mod_tac_plus.route("/add_user/", methods=["GET", "POST"])
+@mod_tac_plus.route("/add_user/", methods=["POST"])
 def add_user():
-	if not session.get("user_id", None):
-		return redirect(url_for('auth.signin'))
-	if request.method == "GET":
-		return render_template("tacacs/add_user.html")
-	else:
-		user = TacacsUser()
-		user.name = request.form.get("user_name", "")
-		user.password = request.form.get("password", "")
-		db.session.add(user)
-		db.session.commit()
-		return redirect(url_for('tac_plus.users'))
+    if not session.get("user_id", None):
+        return redirect(url_for('auth.signin'))
+    user = TacacsUser()
+    user.name = request.form.get("user_name", "")
+    user.password = request.form.get("password", "")
+    db.session.add(user)
+    db.session.commit()
+    return redirect(url_for('tac_plus.users'))
 
 @mod_tac_plus.route("/delete_user/", methods=["GET"])
 def delete_user():
@@ -389,75 +386,55 @@ def delete_user():
 		pass
 	return redirect(url_for('tac_plus.users'))
 
-@mod_tac_plus.route("/groups_json/", methods=["GET", "POST"])
-def groups_json():
-	if not session.get("user_id", None):
-		return jsonify({}), 403
-	try:
-		groups = Group.query.filter(Group.name.like("%{}%".format(request.args.get("group", "")))).all()
-		result = []
-		for group in groups:
-			result.append({
-				"id": group.id,
-				"name": group.name
-				})
-		return jsonify(result)
-	except:
-		return jsonify([])
-
-@mod_tac_plus.route("/users_json/", methods=["GET"])
-def users_json():
-	if not session.get("user_id", None):
-		return jsonify({}), 403
-	try:
-		users = TacacsUser.query.filter(TacacsUser.name.like("%{}%".format(request.args.get("user", "")))).all()
-		result = []
-		for user in users:
-			result.append({
-				"id": user.id,
-				"name": user.name
-				})
-		return jsonify(result)
-	except:
-		return jsonify([])
-
-
 @mod_tac_plus.route("/edit_user/", methods=["GET", "POST"])
 def edit_user():
-	if not session.get("user_id", None):
-		return redirect(url_for('auth.signin'))
-	if request.method == "GET":
-		try:
-			user = TacacsUser.query.filter_by(id=request.args.get("user_id", "")).one()
-			user_groups = TacacsUserGroups.query.filter_by(user_id = user.id) \
-				.join(Group) \
-				.all()
-			
-			user_acls = UserACL.query.filter_by(user_id = request.args.get("user_id", "")).all()	
-			
-			acls = []
-			for acl in user_acls:
-				acls.append(acl)
+    if not session.get("user_id", None):
+        return redirect(url_for('auth.signin'))
+    if request.method == "GET":
+        try:
+            user = TacacsUser.query.filter_by(id=request.args.get("user_id", "")).one()
+            user_groups = TacacsUserGroups.query.filter_by(user_id = user.id) \
+                .join(TacacsGroup) \
+                .all()
+            
+            user_acls = UserACL.query.filter_by(user_id = request.args.get("user_id", "")).all()    
+            
+            acls = []
+            for acl in user_acls:
+                acls.append(acl)
 
-			groups = []
-			for user_group in user_groups:
+            groups = []
+            user_group_ids = []
+            for user_group in user_groups:
+                groups.append(user_group.group)
+                user_group_ids.append(user_group.group.id)
 
-				groups.append(user_group.group)
-			return render_template("tacacs/edit_user.html", user=user, groups = groups, acls = acls)
-		except Exception as e:
-			logging.debug(e)
-			return redirect(url_for('tac_plus.users'))
-	else:
-		try:
-			user = TacacsUser.query.filter_by(id=request.form.get("user_id", "")).one()
-			user.name = request.form.get("user_name", "")
-			user.password = request.form.get("password", "")
-			db.session.commit()
-			return redirect(url_for('tac_plus.users'))
-		except Exception as e:
-			logging.debug(e)
-			return redirect(url_for('tac_plus.users'))
-		return redirect(url_for('tac_plus.users'))
+            user_acl_ids = [acl.id for acl in user_acls]
+            available_groups = TacacsGroup.query.all()
+            all_acls = UserACL.query.all()
+            return render_template(
+                "tacacs/edit_user.html",
+                user=user,
+                groups=groups,
+                acls=acls,
+                all_acls=all_acls,
+                available_groups=available_groups,
+                user_group_ids=user_group_ids,
+                user_acl_ids=user_acl_ids
+            )
+        except Exception as e:
+            logging.debug(e)
+            return redirect(url_for('tac_plus.users'))
+    else:
+        try:
+            user = TacacsUser.query.filter_by(id=request.form.get("user_id", "")).one()
+            user.name = request.form.get("user_name", "")
+            user.password = request.form.get("password", "")
+            db.session.commit()
+            return redirect(url_for('tac_plus.users'))
+        except Exception as e:
+            logging.debug(e)
+            return redirect(url_for('tac_plus.users'))
 
 @mod_tac_plus.route("/commands_json/", methods=["GET", "POST"])
 def commands_json():
@@ -477,107 +454,130 @@ def commands_json():
 	except:
 		return jsonify([])
 
-@mod_tac_plus.route("/add_acl_to_group/", methods=["GET"])
+@mod_tac_plus.route("/add_acl_to_group/", methods=["POST"])
 def add_acl_to_group():
-	if not session.get("user_id", None):
-		return jsonify({}), 403
-	try:
-		acl = GroupACL()
-		acl.access = request.args.get("access", "")
-		acl.group_id = request.args.get("group_id", "")
-		acl.ip = request.args.get("ip", "")
-		acl.mask = request.args.get("mask", "")
-		db.session.add(acl)
-		db.session.commit()
-		return jsonify({})
-	except Exception as e:
-		print(e)
-		return jsonify({})
+    if not session.get("user_id", None):
+        return jsonify({}), 403
+    group_id = request.form.get("group_id", "")
+    ip = request.form.get("ip", "")
+    mask = request.form.get("mask", "")
+    access = request.form.get("access", "")
+    if not (group_id and ip and mask and access):
+        return jsonify({"error": "Missing data"}), 400
+    if access not in ("permit", "deny"):
+        return jsonify({"error": "Access must be 'permit' or 'deny'"}), 400
+    try:
+        ipaddress.ip_network(f"{ip}/{mask}", strict=False)
+    except Exception:
+        return jsonify({"error": "Invalid IP address or mask"}), 400
+    acl = GroupACL()
+    acl.group_id = group_id
+    acl.ip = ip
+    acl.mask = mask
+    acl.access = access
+    db.session.add(acl)
+    db.session.commit()
+    return redirect(url_for('tac_plus.edit_group', group_id=group_id))
 
-@mod_tac_plus.route("/delete_acl_from_group/", methods=["GET", "POST"])
+@mod_tac_plus.route("/delete_acl_from_group/", methods=["POST"])
 def delete_acl_from_group():
-	if not session.get("user_id", None):
-		return jsonify({}), 403
-	try:
-		acl = GroupACL.query.filter_by(group_id = request.args.get("group_id", ""), \
-								 id = request.args.get("acl_id", "")).first()
-		db.session.delete(acl)
-		db.session.commit()
-		return jsonify({})
-	except:
-		return jsonify({})
-
-@mod_tac_plus.route("/add_acl_to_user/", methods=["GET"])
+    if not session.get("user_id", None):
+        return jsonify({}), 403
+    group_id = request.form.get("group_id", "")
+    acl_id = request.form.get("acl_id", "")
+    try:
+        acl = GroupACL.query.filter_by(group_id=group_id, id=acl_id).first()
+        db.session.delete(acl)
+        db.session.commit()
+        return redirect(url_for('tac_plus.edit_group', group_id=group_id))
+    except Exception as e:
+        return jsonify({})
+    
+@mod_tac_plus.route("/add_acl_to_user/", methods=["POST"])
 def add_acl_to_user():
 	if not session.get("user_id", None):
 		return jsonify({}), 403
+	user_id = request.form.get("user_id", "")
+	ip = request.form.get("ip", "")
+	mask = request.form.get("mask", "")
+	access = request.form.get("access", "")
+	if not (user_id and ip and mask and access):
+		return jsonify({"error": "Missing data"}), 400
+	if access not in ("permit", "deny"):
+		return jsonify({"error": "Access must be 'permit' or 'deny'"}), 400
 	try:
-		acl = UserACL()
-		acl.access = request.args.get("access", "")
-		acl.user_id = request.args.get("user_id", "")
-		acl.ip = request.args.get("ip", "")
-		acl.mask = request.args.get("mask", "")
-		db.session.add(acl)
-		db.session.commit()
-		return jsonify({})
-	except Exception as e:
-		print(e)
-		return jsonify({})
+		ipaddress.ip_network(f"{ip}/{mask}", strict=False)
+	except Exception:
+		return jsonify({"error": "Invalid IP address or mask"}), 400
+	acl = UserACL()
+	acl.user_id = user_id
+	acl.ip = ip
+	acl.mask = mask
+	acl.access = access
+	db.session.add(acl)
+	db.session.commit()
+	return redirect(url_for('tac_plus.edit_user', user_id=user_id))
 
-@mod_tac_plus.route("/delete_acl_from_user/", methods=["GET", "POST"])
+@mod_tac_plus.route("/delete_acl_from_user/", methods=["POST"])
 def delete_acl_from_user():
-	if not session.get("user_id", None):
-		return jsonify({}), 403
-	try:
-		acl = UserACL.query.filter_by(user_id = request.args.get("user_id", ""), \
-								 id = request.args.get("acl_id", "")).first()
-		db.session.delete(acl)
-		db.session.commit()
-		return jsonify({})
-	except:
-		return jsonify({})
+    if not session.get("user_id", None):
+        return jsonify({}), 403
+    user_id = request.form.get("user_id", "")
+    acl_id = request.form.get("acl_id", "")
+    try:
+        acl = UserACL.query.filter_by(user_id=user_id, id=acl_id).first()
+        db.session.delete(acl)
+        db.session.commit()
+        return redirect(url_for('tac_plus.edit_user', user_id=user_id))
+    except Exception as e:
+        return jsonify({})
 
 @mod_tac_plus.route("/edit_group/", methods=["GET", "POST"])
 def edit_group():
-	if not session.get("user_id", None):
-		return redirect(url_for('auth.signin'))
-	if request.method == "GET":
-		try:
-			group = Group.query.filter_by(id=request.args.get("group_id", "")).one()
-			group_commands = GroupCommands.query.filter_by(group_id = group.id) \
-				.join(Command) \
-				.all()
-			group_acls = GroupACL.query.filter_by(group_id = request.args.get("group_id", "")).all()	
-			
-			commands = []
-			for group_command in group_commands:
-				commands.append(group_command.command)
-			
-			acls = []
-			for acl in group_acls:
-				acls.append(acl)
-
-			group.valid_until = group.valid_until.strftime("%Y-%m-%d")
-			
-			return render_template("tacacs/edit_group.html", group=group, commands = commands, acls=acls)
-		except Exception as e:
-			print(e)
-			return redirect(url_for('tac_plus.groups'))
-	else:
-		try:
-			group = Group.query.filter_by(id=request.form.get("group_id", "")).one()
-			group.name = request.form.get("group_name", "")
-			group.valid_until = datetime.strptime(request.form.get("valid_until", ""), "%Y-%m-%d")
-			group.cmd_default_policy = request.form.get("cmd_default_policy", "")
-			group.default_privilege = request.form.get("default_privilege", "")
-			group.is_enable_pass = True if request.form.get("is_enable_pass", "") == "on" else False
-			group.enable_pass = request.form.get("enable_pass", "")
-			group.deny_default_service = True if request.form.get("deny_default_service", "") == "on" else False
-			db.session.commit()
-			return redirect(url_for('tac_plus.groups'))
-		except Exception as e:
-			return redirect(url_for('tac_plus.groups'))
-		return redirect(url_for('tac_plus.groups'))
+    if not session.get("user_id", None):
+        return redirect(url_for('auth.signin'))
+    if request.method == "GET":
+        try:
+            group = TacacsGroup.query.filter_by(id=request.args.get("group_id", "")).one()
+            group_commands = GroupCommands.query.filter_by(group_id=group.id).join(Command).all()
+            commands = [gc.command for gc in group_commands]
+            group_acls = GroupACL.query.filter_by(group_id=group.id).all()
+            acls = group_acls
+            # For dropdowns: all commands and all acls
+            all_commands = Command.query.all()
+            all_acls = GroupACL.query.all()
+            # For filtering: ids already assigned
+            group_command_ids = [cmd.id for cmd in commands]
+            group_acl_ids = [acl.id for acl in acls]
+            return render_template(
+                "tacacs/edit_group.html",
+                group=group,
+                commands=commands,
+                acls=acls,
+                all_commands=all_commands,
+                all_acls=all_acls,
+                group_command_ids=group_command_ids,
+                group_acl_ids=group_acl_ids
+            )
+        except Exception as e:
+            logging.debug(e)
+            return redirect(url_for('tac_plus.groups'))
+    else:
+        try:
+            group = TacacsGroup.query.filter_by(id=request.form.get("group_id", "")).one()
+            group.name = request.form.get("group_name", "")
+            group.valid_until = request.form.get("valid_until", "")
+            group.cmd_default_policy = request.form.get("cmd_default_policy", "")
+            group.default_privilege = request.form.get("default_privilege", "")
+            group.is_enable_pass = True if request.form.get("is_enable_pass", "") == "on" else False
+            group.enable_pass = request.form.get("enable_pass", "")
+            group.deny_default_service = True if request.form.get("deny_default_service", "") == "on" else False
+            db.session.commit()
+            return redirect(url_for('tac_plus.groups'))
+        except Exception as e:
+            logging.debug(e)
+            return redirect(url_for('tac_plus.groups'))
+        return redirect(url_for('tac_plus.groups'))
 
 @mod_tac_plus.route('/system/', methods=['GET', 'POST'])
 def system():
@@ -688,7 +688,6 @@ def deploy_configuration_route():
         }
         users.append(user)
     temporary_configuration_file = os.path.join(os.path.curdir, 'tmp', secrets.token_hex(nbytes=16) + '.cfg')
-    print(temporary_configuration_file)
     rendered_config = render_configuration(system, groups, users)
     with open(temporary_configuration_file, "w") as fd:
         fd.write(rendered_config)

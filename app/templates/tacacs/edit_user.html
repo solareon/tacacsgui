@@ -42,35 +42,91 @@
                 <tr class="border-b hover:bg-gray-100">
                   <td class="py-2 px-4">{{ group.name }}</td>
                   <td class="py-2 px-4">
-                    <a href="/tac_plus/delete_group_from_user/?user_id={{ user.id }}&group_id={{ group.id }}" class="text-red-600 hover:underline">Remove</a>
+                    <form method="POST" action="/tac_plus/delete_group_from_user/" style="display:inline;">
+                      <input type="hidden" name="user_id" value="{{ user.id }}">
+                      <input type="hidden" name="group_id" value="{{ group.id }}">
+                      <button type="submit" class="text-red-600 hover:underline bg-transparent border-none p-0 m-0">Remove</button>
+                    </form>
                   </td>
                 </tr>
               {% endfor %}
             </tbody>
           </table>
-          <h2 class="text-lg font-bold mb-2">ACLs</h2>
-          <table class="min-w-full bg-white border border-gray-300 rounded mb-4">
-            <thead>
-              <tr class="bg-gray-200">
-                <th class="py-2 px-4 border-b">IP</th>
-                <th class="py-2 px-4 border-b">Mask</th>
-                <th class="py-2 px-4 border-b">Access</th>
-                <th class="py-2 px-4 border-b">Action</th>
+        </div>
+        <!-- Add group and ACL to user forms in the same row -->
+        <div class="mt-6 flex flex-col sm:flex-row sm:space-x-6 items-start w-full">
+          <!-- Add group to user form -->
+          <form method="POST" action="/tac_plus/add_group_to_user/" class="mb-6 flex items-center space-x-4">
+            <input type="hidden" name="user_id" value="{{ user.id }}">
+            <label for="group_id" class="block text-gray-700 font-bold mb-1 sm:mb-0 whitespace-nowrap">Add to group:</label>
+            <select id="group_id" name="group_id" class="w-48 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400">
+              {% for group in available_groups %}
+                {% if group.id not in user_group_ids %}
+                  <option value="{{ group.id }}">{{ group.name }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Add</button>
+          </form>
+        </div>
+        <div class="flex items-center justify-between mb-2 mt-6">
+          <h2 class="text-lg font-bold">ACLs</h2>
+          <button type="button" onclick="document.getElementById('aclModal').classList.remove('hidden')" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Add ACL</button>
+        </div>
+        <table class="min-w-full bg-white border border-gray-300 rounded mb-4">
+          <thead>
+            <tr class="bg-gray-200">
+              <th class="py-2 px-4 border-b text-left">IP</th>
+              <th class="py-2 px-4 border-b text-left">Mask</th>
+              <th class="py-2 px-4 border-b text-left">Access</th>
+              <th class="py-2 px-4 border-b text-left">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for acl in acls %}
+              <tr class="border-b hover:bg-gray-100">
+                <td class="py-2 px-4">{{ acl.ip }}</td>
+                <td class="py-2 px-4">{{ acl.mask }}</td>
+                <td class="py-2 px-4">{{ acl.access }}</td>
+                <td class="py-2 px-4">
+                  <form method="POST" action="/tac_plus/delete_acl_from_user/" style="display:inline;">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <input type="hidden" name="acl_id" value="{{ acl.id }}">
+                    <button type="submit" class="text-red-600 hover:underline bg-transparent border-none p-0 m-0">Delete</button>
+                  </form>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {% for acl in acls %}
-                <tr class="border-b hover:bg-gray-100">
-                  <td class="py-2 px-4">{{ acl.ip }}</td>
-                  <td class="py-2 px-4">{{ acl.mask }}</td>
-                  <td class="py-2 px-4">{{ acl.access }}</td>
-                  <td class="py-2 px-4">
-                    <a href="/tac_plus/delete_acl_from_user/?acl_id={{ acl.id }}&user_id={{ user.id }}" class="text-red-600 hover:underline">Delete</a>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+            {% endfor %}
+          </tbody>
+        </table>
+        <!-- ACL Modal -->
+        <div id="aclModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 hidden">
+          <div class="bg-white rounded-lg shadow-lg p-8 w-full max-w-md relative">
+            <button onclick="document.getElementById('aclModal').classList.add('hidden')" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">&times;</button>
+            <h3 class="text-lg font-bold mb-4">Add ACL to User</h3>
+            <form method="POST" action="/tac_plus/add_acl_to_user/" class="space-y-4">
+              <input type="hidden" name="user_id" value="{{ user.id }}">
+              <div>
+                <label for="access" class="block text-gray-700 font-bold mb-1">Access</label>
+                <select id="access" name="access" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400">
+                  <option value="permit">Permit</option>
+                  <option value="deny">Deny</option>
+                </select>
+              </div>
+              <div>
+                <label for="ip" class="block text-gray-700 font-bold mb-1">IP Address</label>
+                <input type="text" id="ip" name="ip" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400" placeholder="e.g. 192.168.1.0">
+              </div>
+              <div>
+                <label for="mask" class="block text-gray-700 font-bold mb-1">Mask</label>
+                <input type="text" id="mask" name="mask" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400" placeholder="e.g. 24">
+              </div>
+              <div class="flex justify-end">
+                <button type="button" onclick="document.getElementById('aclModal').classList.add('hidden')" class="mr-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancel</button>
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Add ACL</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>
