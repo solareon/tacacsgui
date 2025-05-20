@@ -1,7 +1,5 @@
 from app import db
-import os
-import hashlib
-import binascii
+from app.utils.tacacs.crypt import generate_hash, verify_hash
 
 class Base(db.Model):
 
@@ -64,7 +62,7 @@ class ConfigurationGroups(Base):
 	configuration_id   = db.Column(db.Integer, db.ForeignKey('tac_plus_cfg.id'), nullable=False)
 
 	configuration      = db.relationship("Configuration", backref="configuration_group")
-	group              = db.relationship("Group", backref="configuration_group_1")
+	group              = db.relationship("TacacsGroup", backref="configuration_group_1")
 
 class ConfigurationUsers(Base):
 
@@ -78,7 +76,7 @@ class ConfigurationUsers(Base):
 	user               = db.relationship("TacacsUser", backref="configuration_user_1")
 
 
-class Group(Base):
+class TacacsGroup(Base):
 
 	__tablename__ = "tac_plus_groups"
 
@@ -97,7 +95,7 @@ class GroupCommands(Base):
 	id                 = db.Column(db.Integer,      primary_key=True)
 	group_id           = db.Column(db.Integer, db.ForeignKey('tac_plus_groups.id'), nullable=False)
 	command_id         = db.Column(db.Integer, db.ForeignKey('tac_plus_commands.id'), nullable=False)
-	group              = db.relationship("Group", backref="group")
+	group              = db.relationship("TacacsGroup", backref="group")
 	command            = db.relationship("Command", backref="command")
 
 class Command(Base):
@@ -143,17 +141,11 @@ class TacacsUser(Base):
 
 	@password.setter
 	def password(self, plaintext):
-		salt = os.urandom(16)
-		hash_bytes = hashlib.pbkdf2_hmac('sha256', plaintext.encode('utf-8'), salt, 100_000)
-		self.password_hash = binascii.hexlify(salt).decode() + '$' + binascii.hexlify(hash_bytes).decode()
+		self.password_hash = generate_hash(plaintext)
 
-	def verify_password(self, plaintext):
+	def check_password(self, plaintext):
 		try:
-			salt_hex, hash_hex = self.password_hash.split('$', 1)
-			salt = binascii.unhexlify(salt_hex)
-			stored_hash = binascii.unhexlify(hash_hex)
-			hash_bytes = hashlib.pbkdf2_hmac('sha256', plaintext.encode('utf-8'), salt, 100_000)
-			return hash_bytes == stored_hash
+			return verify_hash(plaintext, self.password_hash)
 		except Exception:
 			return False
 
@@ -165,6 +157,6 @@ class TacacsUserGroups(Base):
 	id                 = db.Column(db.Integer,      primary_key=True)
 	group_id           = db.Column(db.Integer, db.ForeignKey('tac_plus_groups.id'), nullable=False)
 	user_id            = db.Column(db.Integer, db.ForeignKey('tac_plus_users.id'), nullable=False)
-	group              = db.relationship("Group", backref="user_group")
+	group              = db.relationship("TacacsGroup", backref="user_group")
 	user               = db.relationship("TacacsUser", backref="user")
 
