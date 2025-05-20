@@ -130,7 +130,7 @@ def commands():
 	commands = Command.query.all()
 	return render_template("tacacs/commands.html", commands = commands)
 
-@mod_tac_plus.route("/delete_command/", methods=["GET"])
+@mod_tac_plus.route("/delete_command/", methods=["POST"])
 def delete_command():
 	if not session.get("user_id", None):
 		return redirect(url_for('auth.signin'))
@@ -343,7 +343,7 @@ def add_group_to_user():
     db.session.commit()
     return redirect(url_for('tac_plus.edit_user', user_id=user_id))
 
-@mod_tac_plus.route("/delete_group_from_user/", methods=["GET"])
+@mod_tac_plus.route("/delete_group_from_user/", methods=["POST"])
 def delete_group_from_user():
 	if not session.get("user_id", None):
 		return redirect(url_for('auth.signin'))
@@ -365,20 +365,21 @@ def add_user():
     db.session.commit()
     return redirect(url_for('tac_plus.users'))
 
-@mod_tac_plus.route("/delete_user/", methods=["GET"])
+@mod_tac_plus.route("/delete_user/", methods=["POST"])
 def delete_user():
 	if not session.get("user_id", None):
 		return redirect(url_for('auth.signin'))
 	try:
-		user_configurations = ConfigurationUsers.query.filter_by(user_id=request.args.get("user_id", "")).all()
+		user_id = request.form.get("user_id", "")
+		user_configurations = ConfigurationUsers.query.filter_by(user_id=user_id).all()
 		for user_configuration in user_configurations:
 			db.session.delete(user_configuration)
 			db.session.commit()
-		user_groups = TacacsUserGroups.query.filter_by(user_id=request.args.get("user_id", "")).all()
+		user_groups = TacacsUserGroups.query.filter_by(user_id=user_id).all()
 		for user_group in user_groups:
 			db.session.delete(user_group)
 			db.session.commit()
-		user = TacacsUser.query.filter_by(id=request.args.get("user_id", "")).one()
+		user = TacacsUser.query.filter_by(id=user_id).one()
 		if user:
 			db.session.delete(user)
 			db.session.commit()
@@ -435,24 +436,6 @@ def edit_user():
         except Exception as e:
             logging.debug(e)
             return redirect(url_for('tac_plus.users'))
-
-@mod_tac_plus.route("/commands_json/", methods=["GET", "POST"])
-def commands_json():
-	if not session.get("user_id", None):
-		return jsonify({}), 403
-	try:
-		commands = Command.query.filter(Command.name.like("%{}%".format(request.args.get("cmd", "")))).all()
-		result = []
-		for command in commands:
-			result.append({
-				"id": command.id,
-				"name": command.name,
-				"permit_regex": command.permit_regex,
-				"deny_regex": command.deny_regex
-				})
-		return jsonify(result)
-	except:
-		return jsonify([])
 
 @mod_tac_plus.route("/add_acl_to_group/", methods=["POST"])
 def add_acl_to_group():
@@ -602,11 +585,11 @@ def system():
 		db.session.commit()
 		return render_template("tacacs/system.html", system=system)
 
-@mod_tac_plus.route("/verify_configuration/", methods=["GET"])
+@mod_tac_plus.route("/verify_configuration/", methods=["POST"])
 def verify_configuration():
     if not session.get("user_id", None):
         return redirect(url_for('auth.signin'))
-    configuration_id = request.args.get("config_id", "")
+    configuration_id = request.form.get("config_id", "")
     if not re.match("[1-9]{1}[0-9]*", configuration_id):
         return redirect(url_for("tac_plus.configurations"))
     system = System.query.first()
@@ -647,11 +630,11 @@ def verify_configuration():
         status = "Build status: Configuration file is NOT OK!"
     return redirect(url_for("tac_plus.configurations", status = status))
 
-@mod_tac_plus.route("/deploy_configuration/", methods=["GET"])
+@mod_tac_plus.route("/deploy_configuration/", methods=["POST"])
 def deploy_configuration_route():
     if not session.get("user_id", None):
         return redirect(url_for('auth.signin'))
-    configuration_id = request.args.get("config_id", "")
+    configuration_id = request.form.get("config_id", "")
     if not re.match("[1-9]{1}[0-9]*", configuration_id):
         return redirect(url_for("tac_plus.configurations"))
     configurations = Configuration.query.all()

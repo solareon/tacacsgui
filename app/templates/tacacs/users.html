@@ -49,7 +49,10 @@
               <tr class="border-b hover:bg-gray-100">
                 <td class="py-2 px-4">{{ user.name }}</td>
                 <td class="py-2 px-4">
-                  <a href="/tac_plus/delete_user/?user_id={{ user.id }}" class="text-red-600 hover:underline">Delete</a> |
+                  <form method="POST" action="/tac_plus/delete_user/" style="display:inline">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <button type="submit" class="text-red-600 hover:underline bg-transparent border-none p-0 m-0 cursor-pointer">Delete</button>
+                  </form> |
                   <a href="/tac_plus/edit_user/?user_id={{ user.id }}" class="text-blue-600 hover:underline">Edit</a>
                 </td>
               </tr>

@@ -37,10 +37,19 @@
                   {% endif %}
                 </td>
                 <td class="py-2 px-4">
-                  <a href="/tac_plus/delete_configuration/?config_id={{ configuration.id }}" class="text-red-600 hover:underline">Delete</a><br/>
+                  <form method="POST" action="/tac_plus/delete_configuration/" style="display:inline">
+                    <input type="hidden" name="config_id" value="{{ configuration.id }}">
+                    <button type="submit" class="text-red-600 hover:underline bg-transparent border-none p-0 m-0 cursor-pointer">Delete</button>
+                  </form><br/>
                   <a href="/tac_plus/edit_configuration/?config_id={{ configuration.id }}" class="text-blue-600 hover:underline">Edit</a><br/>
-                  <a href="/tac_plus/verify_configuration/?config_id={{ configuration.id }}" class="text-yellow-600 hover:underline">Build and verify</a><br/>
-                  <a href="/tac_plus/deploy_configuration/?config_id={{ configuration.id }}" class="text-green-600 hover:underline">Deploy</a>
+                  <form method="POST" action="/tac_plus/verify_configuration/" style="display:inline">
+                    <input type="hidden" name="config_id" value="{{ configuration.id }}">
+                    <button type="submit" class="text-yellow-600 hover:underline bg-transparent border-none p-0 m-0 cursor-pointer">Build and verify</button>
+                  </form><br/>
+                  <form method="POST" action="/tac_plus/deploy_configuration/" style="display:inline">
+                    <input type="hidden" name="config_id" value="{{ configuration.id }}">
+                    <button type="submit" class="text-green-600 hover:underline bg-transparent border-none p-0 m-0 cursor-pointer">Deploy</button>
+                  </form><br/>
                 </td>
               </tr>
             {% endfor %}
