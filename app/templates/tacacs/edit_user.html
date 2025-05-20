@@ -1,231 +1,78 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>TACACS+ configuration and monitoring utility</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
-    <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
-  <body>
-    <script>
-      var groups_all = [];
-      function select_group(group_id) {
-        for (var i = 0; i < groups_all.length; i++) {
-          if (group_id == groups_all[i]["id"]) {
-            $("#group").val(groups_all[i]["name"]);
-            $("#group_id").val(group_id);
-            $("#groups").css("display", "none");
-            $.getJSON("/tac_plus/add_group_to_user/", {
-              user_id: $("#user_id").val(),
-              group_id: $("#group_id").val()
-            })
-            .done(function(data) {
-              location.reload(); 
-            });
-            
-          }
-        }
-        return false;
-      }
-      function search_groups() {
-        if ($("#group").val() == "") {
-          $("#groups").css("display", "none");
-        }
-        $.getJSON("/tac_plus/groups_json/", {
-          group: $("#group").val()
-        })
-        .done(function(groups) {
-          groups_all = groups;
-          var html = "<table class='table table-dark'><thead><tr><td>Action</td><td>Group name</td></tr></thead><tbody>"
-          $.each(groups, function(i, group) {
-            html += "<tr><td>";
-            html += "<a href='' onclick='select_group(" + group["id"] + "); event.preventDefault()'>Add</a>";
-            html += "</td><td>"
-            html += group["name"]
-            html += "</td></tr>";
-          });
-          html += "</tbody></table>";
-          $("#groups").html(html);
-          $("#groups").css("display", "block");
-        });
-      }
-
-      function add_acl(user_id) {
-        if ($("#acl_ip").val() == "") {
-          return;
-        }
-        const regex = /[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}/;
-        if (!regex.test($("#acl_ip").val())) {
-          alert("Invalid IP address")
-          return;
-        }
-        if ($("#acl_mask").val() == "") {
-          return;
-        }
-        if ($("#acl_access").val() == "") {
-          return;
-        }
-        $.getJSON("/tac_plus/add_acl_to_user/", {
-          ip: $("#acl_ip").val(),
-          mask: $("#acl_mask").val(),
-          access: $("#acl_access").val(),
-          user_id: user_id
-        })
-        .done(function() {
-          location.reload()
-        }); 
-      }
-
-      function delete_acl(acl_id, user_id) {
-        $.getJSON("/tac_plus/delete_acl_from_user/", {
-          acl_id: acl_id,
-          user_id: user_id
-        })
-        .done(function() {
-          location.reload()
-        });
-      }
-    </script>
-    <div class="header">
-      <div class="link"><a href="/tac_plus/configurations/">Configurations</a></div>
-      <div class="link"><a href="/tac_plus/users/">Users</a></div>
-      <div class="link"><a href="/tac_plus/groups/">Groups</a></div>
-      <div class="link"><a href="/tac_plus/commands/">Commands</a></div>
-      <div class="link"><a href="/tac_plus/system/">System</a></div>
-      <div class="link"><a href="/statistics/">Statistics</a></div>
-      <div class="link"><a href="/auth/logout/">Logout</a></div>
-    </div>
-    <div class="row">
-      <div class="col-1"></div>
-      <div class="col-10">
-        <form method="POST" action="." accept-charset="UTF-8">
-          <div class="form-group">
-            <input type="hidden" class="form-control" id="user_id" name="user_id" value="{{user.id}}">
+  <body class="bg-gray-100 min-h-screen">
+    <nav class="bg-gray-900 text-white flex space-x-4 px-4 py-3">
+      <a href="/tac_plus/configurations/" class="hover:text-blue-400">Configurations</a>
+      <a href="/tac_plus/users/" class="hover:text-blue-400">Users</a>
+      <a href="/tac_plus/groups/" class="hover:text-blue-400">Groups</a>
+      <a href="/tac_plus/commands/" class="hover:text-blue-400">Commands</a>
+      <a href="/tac_plus/system/" class="hover:text-blue-400">System</a>
+      <a href="/statistics/" class="hover:text-blue-400">Statistics</a>
+      <a href="/auth/logout/" class="ml-auto hover:text-red-400">Logout</a>
+    </nav>
+    <div class="flex justify-center mt-10">
+      <div class="w-full max-w-4xl bg-white rounded shadow p-8">
+        <form method="POST" action="." accept-charset="UTF-8" class="space-y-6">
+          <input type="hidden" id="user_id" name="user_id" value="{{user.id}}">
+          <div>
+            <label for="user_name" class="block text-gray-700 font-bold mb-2">User name</label>
+            <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="user_name" name="user_name" placeholder="User name" value="{{user.name}}">
           </div>
-          <div class="form-group">
-            <label for="user_name">Username</label>
-            <input type="text" class="form-control" id="user_name" name="user_name" placeholder="Username" value="{{user.name}}">
+          <div>
+            <label for="password" class="block text-gray-700 font-bold mb-2">Password</label>
+            <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="password" name="password" placeholder="Password">
           </div>
-          <div class="form-group">
-            <label for="password">Encrypted password</label>
-            <input type="text" class="form-control" id="password" name="password" placeholder="Password" value="{{user.password}}">
-          </div>
-          <div class="form-group">
-            <label for="user_groups">Groups added to user</label>
-            <div id="user_groups" class="form-group">
-              <table class="table table-dark table-striped">
-                <thead>
-                  <tr>
-                    <td>Group name</td>
-                    <td>Action</td>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for group in groups %}
-                    <tr>
-                      <td>{{ group.name }}</td>
-                      <td><a href="/tac_plus/delete_group_from_user/?user_id={{ user.id }}&group_id={{group.id}}">Delete</a></td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="group">Group to add</label>
-            <input type="text" class="form-control" id="group" name="group" autocomplete="off" placeholder="Type the group" onkeypress="search_groups()">
-            <div id="groups">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="acls">ACL for the user</label>
-            <div id="commands" class="form-group">
-              <table class="table table-dark table-striped">
-                <thead>
-                  <tr>
-                    <td>IP/mask</td>
-                    <td>Permission</td>
-                    <td>Action</td>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for acl in acls %}
-                    <tr>
-                      <td>{{ acl.ip }}/{{ acl.mask }}</td>
-                      <td>{{ acl.access }}</td>
-                      <td><a href="#" onclick="delete_acl({{acl.id}}, {{user.id}})">Delete</a></td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div class="form-group">
-            
-            <label for="acl_ip">ACL to add</label>
-            <table class="table table-dark table-striped">
-              <tr>
-                <td width="30%">
-                  <label for="acl_ip">IP</label>
-                  <input type="text" class="form-control" id="acl_ip" name="mask" autocomplete="off" placeholder="Type IP address"></td>
-                <td width="30%">
-                  <label for="acl_mask">Mask</label>
-                  <select class="form-control" id="acl_mask" name="acl_mask">
-                    <option value="0">0</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                    <option value="6">6</option>
-                    <option value="7">7</option>
-                    <option value="8">8</option>
-                    <option value="9">9</option>
-                    <option value="10">10</option>
-                    <option value="11">11</option>
-                    <option value="12">12</option>
-                    <option value="13">13</option>
-                    <option value="14">14</option>
-                    <option value="15">15</option>
-                    <option value="16">16</option>
-                    <option value="17">17</option>
-                    <option value="18">18</option>
-                    <option value="19">19</option>
-                    <option value="20">20</option>
-                    <option value="21">21</option>
-                    <option value="22">22</option>
-                    <option value="23">23</option>
-                    <option value="24">24</option>
-                    <option value="25">25</option>
-                    <option value="26">26</option>
-                    <option value="27">27</option>
-                    <option value="28">28</option>
-                    <option value="29">29</option>
-                    <option value="30">30</option>
-                    <option value="31">31</option>
-                    <option value="32">32</option>
-                  </select>
-                </td>
-                <td width="30%">
-                  <label for="acl_access">ACL access</label>
-                  <select class="form-control" id="acl_access" name="acl_access">
-                    <option value="allow">allow</option>
-                    <option value="deny">deny</option>
-                  <select>
-                </td>
-                <td>
-                  <br/>
-                  <button class="btn btn-primary form-control" type="button" onclick="add_acl({{ user.id }})">Add ACL</button>
-                </td>
-              </tr>
-            </table>
-          </div>
-          <div class="form-group">
-            <input type="hidden" class="form-control" id="group_id" name="group_id">
-          </div>
-          <button type="submit" class="btn btn-primary form-control">Update</button>
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Update</button>
         </form>
+        <div class="mt-8">
+          <h2 class="text-lg font-bold mb-2">Groups</h2>
+          <table class="min-w-full bg-white border border-gray-300 rounded mb-4">
+            <thead>
+              <tr class="bg-gray-200">
+                <th class="py-2 px-4 border-b">Group name</th>
+                <th class="py-2 px-4 border-b">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for group in groups %}
+                <tr class="border-b hover:bg-gray-100">
+                  <td class="py-2 px-4">{{ group.name }}</td>
+                  <td class="py-2 px-4">
+                    <a href="/tac_plus/delete_group_from_user/?user_id={{ user.id }}&group_id={{ group.id }}" class="text-red-600 hover:underline">Remove</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <h2 class="text-lg font-bold mb-2">ACLs</h2>
+          <table class="min-w-full bg-white border border-gray-300 rounded mb-4">
+            <thead>
+              <tr class="bg-gray-200">
+                <th class="py-2 px-4 border-b">IP</th>
+                <th class="py-2 px-4 border-b">Mask</th>
+                <th class="py-2 px-4 border-b">Access</th>
+                <th class="py-2 px-4 border-b">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for acl in acls %}
+                <tr class="border-b hover:bg-gray-100">
+                  <td class="py-2 px-4">{{ acl.ip }}</td>
+                  <td class="py-2 px-4">{{ acl.mask }}</td>
+                  <td class="py-2 px-4">{{ acl.access }}</td>
+                  <td class="py-2 px-4">
+                    <a href="/tac_plus/delete_acl_from_user/?acl_id={{ acl.id }}&user_id={{ user.id }}" class="text-red-600 hover:underline">Delete</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="col-1"></div>
     </div>
   </body>
 </html>

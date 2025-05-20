@@ -1,41 +1,42 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>TACACS+ configuration and monitoring utility</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
-  <body>
-    <div class="header">
-      <div class="link"><a href="/tac_plus/configurations/">Configurations</a></div>
-      <div class="link"><a href="/tac_plus/users/">Users</a></div>
-      <div class="link"><a href="/tac_plus/groups/">Groups</a></div>
-      <div class="link"><a href="/tac_plus/commands/">Commands</a></div>
-      <div class="link"><a href="/tac_plus/system/">System</a></div>
-      <div class="link"><a href="/statistics/">Statistics</a></div>
-      <div class="link"><a href="/auth/logout/">Logout</a></div>
-    </div>
-    <div class="row">
-      <div class="col-1"></div>
-      <div class="col-10">
-        <a href="/tac_plus/add_user/" class="btn btn-primary form-control">Add new user</a>
-        <table class="table table-dark table-striped">
+  <body class="bg-gray-100 min-h-screen">
+    <nav class="bg-gray-900 text-white flex space-x-4 px-4 py-3">
+      <a href="/tac_plus/configurations/" class="hover:text-blue-400">Configurations</a>
+      <a href="/tac_plus/users/" class="hover:text-blue-400">Users</a>
+      <a href="/tac_plus/groups/" class="hover:text-blue-400">Groups</a>
+      <a href="/tac_plus/commands/" class="hover:text-blue-400">Commands</a>
+      <a href="/tac_plus/system/" class="hover:text-blue-400">System</a>
+      <a href="/statistics/" class="hover:text-blue-400">Statistics</a>
+      <a href="/auth/logout/" class="ml-auto hover:text-red-400">Logout</a>
+    </nav>
+    <div class="flex justify-center mt-10">
+      <div class="w-full max-w-4xl bg-white rounded shadow p-8">
+        <a href="/tac_plus/add_user/" class="block mb-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-center">Add new user</a>
+        <table class="min-w-full bg-white border border-gray-300 rounded">
           <thead>
-            <tr>
-              <td>User name</td>
-              <td>Action</td>
+            <tr class="bg-gray-200">
+              <th class="py-2 px-4 border-b">User name</th>
+              <th class="py-2 px-4 border-b">Action</th>
             </tr>
           </thead>
           <tbody>
             {% for user in users %}
-              <tr>
-                <td>{{ user.name }}</td>
-                <td><a href="/tac_plus/delete_user/?user_id={{ user.id }}">Delete</a><br/><a href="/tac_plus/edit_user/?user_id={{ user.id }}">Edit</a></td>
+              <tr class="border-b hover:bg-gray-100">
+                <td class="py-2 px-4">{{ user.name }}</td>
+                <td class="py-2 px-4">
+                  <a href="/tac_plus/delete_user/?user_id={{ user.id }}" class="text-red-600 hover:underline">Delete</a> |
+                  <a href="/tac_plus/edit_user/?user_id={{ user.id }}" class="text-blue-600 hover:underline">Edit</a>
+                </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
-      <div class="col-1"></div>
     </div>
   </body>
 </html>

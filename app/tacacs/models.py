@@ -1,4 +1,7 @@
 from app import db
+import os
+import hashlib
+import binascii
 
 class Base(db.Model):
 
@@ -35,6 +38,9 @@ class System(Base):
 
 	# Login backend
 	login_backend      = db.Column(db.String(128),  nullable=False, default="mavis")
+ 
+	min_instances     = db.Column(db.Integer,      nullable=False, default=1)
+	max_instances     = db.Column(db.Integer,      nullable=False, default=32)
 
 
 class Configuration(Base):
@@ -129,7 +135,27 @@ class TacacsUser(Base):
 
 	id                 = db.Column(db.Integer,      primary_key=True)
 	name               = db.Column(db.String(128),  nullable=False)
-	password           = db.Column(db.String(128),  nullable=False)
+	password_hash      = db.Column(db.String(256),  nullable=False)
+
+	@property
+	def password(self):
+		raise AttributeError("Password is write-only.")
+
+	@password.setter
+	def password(self, plaintext):
+		salt = os.urandom(16)
+		hash_bytes = hashlib.pbkdf2_hmac('sha256', plaintext.encode('utf-8'), salt, 100_000)
+		self.password_hash = binascii.hexlify(salt).decode() + '$' + binascii.hexlify(hash_bytes).decode()
+
+	def verify_password(self, plaintext):
+		try:
+			salt_hex, hash_hex = self.password_hash.split('$', 1)
+			salt = binascii.unhexlify(salt_hex)
+			stored_hash = binascii.unhexlify(hash_hex)
+			hash_bytes = hashlib.pbkdf2_hmac('sha256', plaintext.encode('utf-8'), salt, 100_000)
+			return hash_bytes == stored_hash
+		except Exception:
+			return False
 
 
 class TacacsUserGroups(Base):

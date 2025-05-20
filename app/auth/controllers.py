@@ -2,15 +2,9 @@
 from flask import Blueprint, request, render_template, \
                   flash, g, session, redirect, url_for
 
-# Import password / encryption helper tools
-#from werkzeug.security import generate_password_hash, check_password_hash
-
 
 # Import the database object from the main app module
 from app import db
-
-# Import module models (i.e. User)
-from app.auth.models import User
 
 # Import tacacs users
 from app.tacacs.models import TacacsUser
@@ -18,11 +12,15 @@ from app.tacacs.models import TacacsUser
 # Secrets
 import secrets
 
+
 # Password encryption routines
 from app.utils.tacacs.utils import encrypt_password
 
-# Import utils
-from app.utils.tacacs.utils import check_password
+# Import pwd and grp for user and group management
+import pwd
+import grp
+
+TACACS_GROUP = "tacacs"
 
 # Import regex stuff
 import re
@@ -35,13 +33,35 @@ mod_auth = Blueprint('auth', __name__, url_prefix='/auth')
 def signin():
     error = None
     if request.method == "POST":
-        user = User.query.filter_by(username=request.form.get("username", None)).first()
-        if user and check_password(user.password, request.form.get("password", "").encode("UTF-8")):
-            session["user_id"] = user.id
+        username = request.form.get("username", None)
+        password = request.form.get("password", "")
+        if not username:
+            error = 'Username is required'
+            return render_template("auth/signin.html", error=error)
+        try:
+            # Check if user exists in the system
+            user_info = pwd.getpwnam(username)
+            # Check if user is in tacacs group
+            groups = [g.gr_name for g in grp.getgrall() if username in g.gr_mem]
+            # Also check primary group
+            primary_group = grp.getgrgid(user_info.pw_gid).gr_name
+            if TACACS_GROUP not in groups and TACACS_GROUP != primary_group:
+                error = 'User is not a member of the tacacs group'
+                return render_template("auth/signin.html", error=error)
+            # Authenticate user using PAM
+            import subprocess
+            result = subprocess.run(['su', '-', username, '-c', 'true'], input=password + '\n', text=True, capture_output=True)
+            if result.returncode != 0:
+                error = 'Wrong username or password'
+                return render_template("auth/signin.html", error=error)
+            session["user_id"] = username
             session["csrf_token"] = secrets.token_hex(nbytes=16)
-            flash('Welcome %s' % user.username)
+            flash('Welcome %s' % username)
             return redirect(url_for('tac_plus.configurations'))
-        error = 'Wrong username or password'
+        except KeyError:
+            error = 'Wrong username or password'
+        except Exception as e:
+            error = str(e)
     return render_template("auth/signin.html", error=error)
 
 @mod_auth.route("/logout/", methods=["GET"])
@@ -51,13 +71,15 @@ def logout():
 
 @mod_auth.route("/reset_tacacs_password/", methods=["GET", "POST"])
 def reset_tacacs_password():
+    error = None
+    status = None
     if request.method == "POST":
-        user_name = request.form.get("username", "")
+        username = request.form.get("username", "")
         old_password = request.form.get("old_password", "")
         new_password = request.form.get("new_password", "")
         new_password_confirm = request.form.get("new_password_confirm", "")
         try:
-            tacacs_user = TacacsUser.query.filter_by(name = user_name).one()
+            tacacs_user = TacacsUser.query.filter_by(name = username).one()
         except:
             return render_template("auth/reset_tacacs_password.html", error="User was not found in the database", status=None)
         if encrypt_password(old_password) != tacacs_user.password:

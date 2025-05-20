@@ -1,74 +1,60 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>TACACS+ configuration and monitoring utility</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
-  <body>
-    <div class="header">
-      <div class="link"><a href="/tac_plus/configurations/">Configurations</a></div>
-      <div class="link"><a href="/tac_plus/users/">Users</a></div>
-      <div class="link"><a href="/tac_plus/groups/">Groups</a></div>
-      <div class="link"><a href="/tac_plus/commands/">Commands</a></div>
-      <div class="link"><a href="/tac_plus/system/">System</a></div>
-      <div class="link"><a href="/statistics/">Statistics</a></div>
-      <div class="link"><a href="/auth/logout/">Logout</a></div>
-    </div>
-    <div class="row">
-      <div class="col-1"></div>
-      <div class="col-10">
-        <form method="POST" action="." accept-charset="UTF-8">
-          <div class="form-group">
-            <label for="group_name">Group name</label>
-            <input type="text" class="form-control" id="group_name" name="group_name" placeholder="Group name">
+  <body class="bg-gray-100 min-h-screen">
+    <nav class="bg-gray-900 text-white flex space-x-4 px-4 py-3">
+      <a href="/tac_plus/configurations/" class="hover:text-blue-400">Configurations</a>
+      <a href="/tac_plus/users/" class="hover:text-blue-400">Users</a>
+      <a href="/tac_plus/groups/" class="hover:text-blue-400">Groups</a>
+      <a href="/tac_plus/commands/" class="hover:text-blue-400">Commands</a>
+      <a href="/tac_plus/system/" class="hover:text-blue-400">System</a>
+      <a href="/statistics/" class="hover:text-blue-400">Statistics</a>
+      <a href="/auth/logout/" class="ml-auto hover:text-red-400">Logout</a>
+    </nav>
+    <div class="flex justify-center mt-10">
+      <div class="w-full max-w-lg bg-white rounded shadow p-8">
+        <form method="POST" action="." accept-charset="UTF-8" class="space-y-6">
+          <div>
+            <label for="group_name" class="block text-gray-700 font-bold mb-2">Group name</label>
+            <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="group_name" name="group_name" placeholder="Group name">
           </div>
-          <div class="form-group">
-            <label for="group_name">Is enable password set</label>
-            <input type="checkbox" id="is_enable_pass" name="is_enable_pass">
+          <div class="flex items-center">
+            <input type="checkbox" id="is_enable_pass" name="is_enable_pass" class="mr-2">
+            <label for="is_enable_pass" class="text-gray-700">Is enable password set</label>
           </div>
-          <div class="form-group">
-            <label for="password">Enable password</label>
-            <input type="password" class="form-control" id="enable_pass" name="enable_pass" placeholder="Password">
+          <div>
+            <label for="enable_pass" class="block text-gray-700 font-bold mb-2">Enable password</label>
+            <input type="password" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="enable_pass" name="enable_pass" placeholder="Password">
           </div>
-          <div class="form-group">
-            <label for="group_name">Default service deny</label>
-            <input type="checkbox" id="deny_default_service" name="deny_default_service">
+          <div class="flex items-center">
+            <input type="checkbox" id="deny_default_service" name="deny_default_service" class="mr-2">
+            <label for="deny_default_service" class="text-gray-700">Default service deny</label>
           </div>
-          <div class="form-group">
-            <label for="valid_until">Valid until</label>
-            <input type="date" class="form-control" id="valid_until" name="valid_until" placeholder="Valid until">
+          <div>
+            <label for="valid_until" class="block text-gray-700 font-bold mb-2">Valid until</label>
+            <input type="date" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="valid_until" name="valid_until" placeholder="Valid until">
           </div>
-          <div class="form-group">
-            <label for="cmd_default_policy">Default command policy</label>
-            <select class="form-control" id="cmd_default_policy" name="cmd_default_policy">
+          <div>
+            <label for="cmd_default_policy" class="block text-gray-700 font-bold mb-2">Default command policy</label>
+            <select class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="cmd_default_policy" name="cmd_default_policy">
               <option value="permit">Permit</option>
               <option value="deny">Deny</option>
-            <select>
+            </select>
           </div>
-          <div class="form-group">
-            <label for="default_privilege">Privilege level</label>
-            <select class="form-control" id="default_privilege" name="default_privilege">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-              <option value="7">7</option>
-              <option value="8">8</option>
-              <option value="9">9</option>
-              <option value="10">10</option>
-              <option value="11">11</option>
-              <option value="12">12</option>
-              <option value="13">13</option>
-              <option value="14">14</option>
-              <option value="15">15</option>              
-            <select>
+          <div>
+            <label for="default_privilege" class="block text-gray-700 font-bold mb-2">Privilege level</label>
+            <select class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="default_privilege" name="default_privilege">
+              {% for i in range(1, 16) %}
+                <option value="{{ i }}">{{ i }}</option>
+              {% endfor %}
+            </select>
           </div>
-          <button type="submit" class="btn btn-primary form-control">Save</button>
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Save</button>
         </form>
       </div>
-      <div class="col-1"></div>
     </div>
   </body>
 </html>

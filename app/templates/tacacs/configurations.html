@@ -1,57 +1,55 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>TACACS+ configuration and monitoring utility</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
-  <body>
-    <div class="header">
-      <div class="link"><a href="/tac_plus/configurations/">Configurations</a></div>
-      <div class="link"><a href="/tac_plus/users/">Users</a></div>
-      <div class="link"><a href="/tac_plus/groups/">Groups</a></div>
-      <div class="link"><a href="/tac_plus/commands/">Commands</a></div>
-      <div class="link"><a href="/tac_plus/system/">System</a></div>
-      <div class="link"><a href="/statistics/">Statistics</a></div>
-      <div class="link"><a href="/auth/logout/">Logout</a></div>
-    </div>
-    <div class="row">
-      <div class="col-1"></div>
-      <div class="col-10">
-        <a href="/tac_plus/add_configuration/" class="btn btn-primary form-control">Add new configuration</a>
-        <table class="table table-dark table-striped">
+  <body class="bg-gray-100 min-h-screen">
+    <nav class="bg-gray-900 text-white flex space-x-4 px-4 py-3">
+      <a href="/tac_plus/configurations/" class="hover:text-blue-400">Configurations</a>
+      <a href="/tac_plus/users/" class="hover:text-blue-400">Users</a>
+      <a href="/tac_plus/groups/" class="hover:text-blue-400">Groups</a>
+      <a href="/tac_plus/commands/" class="hover:text-blue-400">Commands</a>
+      <a href="/tac_plus/system/" class="hover:text-blue-400">System</a>
+      <a href="/statistics/" class="hover:text-blue-400">Statistics</a>
+      <a href="/auth/logout/" class="ml-auto hover:text-red-400">Logout</a>
+    </nav>
+    <div class="flex justify-center mt-10">
+      <div class="w-full max-w-4xl bg-white rounded shadow p-8">
+        <a href="/tac_plus/add_configuration/" class="block mb-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-center">Add new configuration</a>
+        <table class="min-w-full bg-white border border-gray-300 rounded">
           <thead>
-            <tr>
-              <td>Configuration name</td>
-              <td>Deployed</td>
-              <td>Action</td>
+            <tr class="bg-gray-200">
+              <th class="py-2 px-4 border-b">Configuration name</th>
+              <th class="py-2 px-4 border-b">Deployed</th>
+              <th class="py-2 px-4 border-b">Action</th>
             </tr>
           </thead>
           <tbody>
             {% for configuration in configurations %}
-              <tr>
-                <td>{{ configuration.name }}</td>
-                <td>
+              <tr class="border-b hover:bg-gray-100">
+                <td class="py-2 px-4">{{ configuration.name }}</td>
+                <td class="py-2 px-4">
                   {% if configuration.deployed %}
-                    <span class="badge badge-success">Deployed</span>
+                    <span class="inline-block bg-green-200 text-green-800 text-xs px-2 py-1 rounded">Deployed</span>
                   {% else %}
-                    <span class="badge badge-danger">Not deployed</span>
+                    <span class="inline-block bg-red-200 text-red-800 text-xs px-2 py-1 rounded">Not deployed</span>
                   {% endif %}
                 </td>
-                <td>
-                  <a href="/tac_plus/delete_configuration/?config_id={{ configuration.id }}">Delete</a><br/>
-                  <a href="/tac_plus/edit_configuration/?config_id={{ configuration.id }}">Edit</a><br/>
-                  <a href="/tac_plus/verify_configuration/?config_id={{ configuration.id }}">Build and verify</a><br/>
-                  <a href="/tac_plus/deploy_configuration/?config_id={{ configuration.id }}">Deploy</a>
+                <td class="py-2 px-4">
+                  <a href="/tac_plus/delete_configuration/?config_id={{ configuration.id }}" class="text-red-600 hover:underline">Delete</a><br/>
+                  <a href="/tac_plus/edit_configuration/?config_id={{ configuration.id }}" class="text-blue-600 hover:underline">Edit</a><br/>
+                  <a href="/tac_plus/verify_configuration/?config_id={{ configuration.id }}" class="text-yellow-600 hover:underline">Build and verify</a><br/>
+                  <a href="/tac_plus/deploy_configuration/?config_id={{ configuration.id }}" class="text-green-600 hover:underline">Deploy</a>
                 </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
         {% if status %}
-          <div class="alert alert-info">{{ status }}</div>
+          <div class="mt-4 p-4 bg-yellow-100 text-yellow-800 rounded">{{ status }}</div>
         {% endif %}
       </div>
-      <div class="col-1"></div>
     </div>
   </body>
 </html>

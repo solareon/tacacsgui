@@ -1,4 +1,0 @@
-cmd = ##command_name {
-    ##permit
-    ##deny    
-}

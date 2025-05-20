@@ -1,0 +1,76 @@
+#!/usr/local/sbin/tac_plus
+id = spawnd {
+    background = no
+    listen = { port = {{ listen_port }} }
+    spawn {
+        instances min = {{ min_instances }}
+        instances max = {{ max_instances }}
+    }
+}
+
+id = tac_plus-ng {
+
+    # Logging
+    log access { destination = {{ authentication_log }} }
+    log accounting { destination = {{ accounting_log }} }
+    log authorization { destination = {{ authorization_log }} }
+
+    # Log files
+    access log = access
+    accounting log = accounting
+    authorization log = authorization
+
+    retire limit = 3000
+
+    # Define external authentication module
+    mavis module = external {
+        exec = {{ mavis_module }}
+    }
+
+    # Authentication backend
+    login backend = {{ login_backend }}
+
+    # Default host for all connections
+    host = {{ default_host }} {
+        key = "{{ authentication_key }}"
+    }
+
+    {# Groups #}
+    {% for group in groups %}
+    profile {{ group.name }} {
+        {% if group.enable_password %}
+        enable password = {{ group.enable_password }}
+        {% endif %}
+        {% if group.default_service %}
+        default service = {{ group.default_service }}
+        {% endif %}
+        {% if group.access %}
+        {{ group.access }}
+        {% endif %}
+        service = shell {
+            default cmd = {{ group.default_cmd }}
+            set priv-lvl = {{ group.privilege_level }}
+            {% for cmd in group.cmds %}
+            cmd = {{ cmd.name }} {
+                {% if cmd.permit %}
+                {{ cmd.permit }}
+                {% endif %}
+                {% if cmd.deny %}
+                {{ cmd.deny }}
+                {% endif %}
+            }
+            {% endfor %}
+        }
+    }
+    {% endfor %}
+
+    {# Users #}
+    {% for user in users %}
+    user {{ user.username }} {
+        password login = crypt {{ user.encrypted_password }}
+        {% if user.groups %}
+        member = {{ user.groups | join(',') }}
+        {% endif %}
+    }
+    {% endfor %}
+}

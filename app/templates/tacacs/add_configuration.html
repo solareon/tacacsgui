@@ -1,43 +1,29 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>TACACS+ configuration and monitoring utility</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
-  <body>
-    <div class="header">
-      <div class="link"><a href="/tac_plus/configurations/">Configurations</a></div>
-      <div class="link"><a href="/tac_plus/users/">Users</a></div>
-      <div class="link"><a href="/tac_plus/groups/">Groups</a></div>
-      <div class="link"><a href="/tac_plus/commands/">Commands</a></div>
-      <div class="link"><a href="/tac_plus/system/">System</a></div>
-     <div class="link"><a href="/statistics/">Statistics</a></div>
-      <div class="link"><a href="/auth/logout/">Logout</a></div>
-    </div>
-    <div class="row">
-      <div class="col-1"></div>
-      <div class="col-10">
-        <form method="POST" action="." accept-charset="UTF-8">
-          <div class="form-group">
-            <label for="configuration_name">Configuration name</label>
-            <input type="text" class="form-control" id="configuration_name" name="configuration_name" placeholder="Configuration name">
+  <body class="bg-gray-100 min-h-screen">
+    <nav class="bg-gray-900 text-white flex space-x-4 px-4 py-3">
+      <a href="/tac_plus/configurations/" class="hover:text-blue-400">Configurations</a>
+      <a href="/tac_plus/users/" class="hover:text-blue-400">Users</a>
+      <a href="/tac_plus/groups/" class="hover:text-blue-400">Groups</a>
+      <a href="/tac_plus/commands/" class="hover:text-blue-400">Commands</a>
+      <a href="/tac_plus/system/" class="hover:text-blue-400">System</a>
+      <a href="/statistics/" class="hover:text-blue-400">Statistics</a>
+      <a href="/auth/logout/" class="ml-auto hover:text-red-400">Logout</a>
+    </nav>
+    <div class="flex justify-center mt-10">
+      <div class="w-full max-w-lg bg-white rounded shadow p-8">
+        <form method="POST" action="." accept-charset="UTF-8" class="space-y-6">
+          <div>
+            <label for="configuration_name" class="block text-gray-700 font-bold mb-2">Configuration name</label>
+            <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="configuration_name" name="configuration_name" placeholder="Configuration name">
           </div>
-          <!-- div class="form-group">
-            <label for="authentication_log">Authentication log file</label>
-            <input type="text" class="form-control" id="authentication_log" name="authentication_log" placeholder="Authentication log" value="authentication.log">
-          </div>
-          <div class="form-group">
-            <label for="authorization_log">Authorization log file</label>
-            <input type="text" class="form-control" id="authorization_log" name="authorization_log" placeholder="Authorization log" value="authorization.log">
-          </div>
-          <div class="form-group">
-            <label for="accounting_log">Accounting log file</label>
-            <input type="text" class="form-control" id="accounting_log" name="accounting_log" placeholder="Accounting log" value="accounting.log">
-          </div --->
-          <button type="submit" class="btn btn-primary form-control">Save</button>
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Save</button>
         </form>
       </div>
-      <div class="col-1"></div>
     </div>
   </body>
 </html>
