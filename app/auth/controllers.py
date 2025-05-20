@@ -14,11 +14,12 @@ import secrets
 
 
 # Password encryption routines
-from app.utils.tacacs.utils import encrypt_password
+from app.utils.tacacs.crypt import generate_hash, verify_hash
 
 # Import pwd and grp for user and group management
 import pwd
 import grp
+import pam
 
 TACACS_GROUP = "tacacs"
 
@@ -49,9 +50,7 @@ def signin():
                 error = 'User is not a member of the tacacs group'
                 return render_template("auth/signin.html", error=error)
             # Authenticate user using PAM
-            import subprocess
-            result = subprocess.run(['su', '-', username, '-c', 'true'], input=password + '\n', text=True, capture_output=True)
-            if result.returncode != 0:
+            if not pam.authenticate(username, password, service='login'):
                 error = 'Wrong username or password'
                 return render_template("auth/signin.html", error=error)
             session["user_id"] = username
@@ -71,8 +70,6 @@ def logout():
 
 @mod_auth.route("/reset_tacacs_password/", methods=["GET", "POST"])
 def reset_tacacs_password():
-    error = None
-    status = None
     if request.method == "POST":
         username = request.form.get("username", "")
         old_password = request.form.get("old_password", "")
@@ -82,13 +79,13 @@ def reset_tacacs_password():
             tacacs_user = TacacsUser.query.filter_by(name = username).one()
         except:
             return render_template("auth/reset_tacacs_password.html", error="User was not found in the database", status=None)
-        if encrypt_password(old_password) != tacacs_user.password:
+        if not tacacs_user.check_password(old_password):
             return render_template("auth/reset_tacacs_password.html", error="Old password is incorrect", status=None)
         if not re.match(r"[a-zA-Z_$@0-9]{5,16}", new_password):
             return render_template("auth/reset_tacacs_password.html", error="Password is too easy. It should match the regex: [a-zA-Z_$@0-9]{5,16}", status=None)
         if new_password != new_password_confirm:
             return render_template("auth/reset_tacacs_password.html", error="Passwords do not match!", status=None)
-        tacacs_user.password = encrypt_password(new_password)
+        tacacs_user.password = new_password
         db.session.commit()
         return render_template("auth/reset_tacacs_password.html", error=None, status="Password was changed! Contact your administrator and ask to update the configuration file")
     else:

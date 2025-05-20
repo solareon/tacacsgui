@@ -3,15 +3,12 @@ from flask import Flask, render_template, redirect, url_for
 
 # System libraries
 import os
-import re
 import secrets
-from datetime import datetime
-from app.utils.tacacs.utils import encrypt_password
 from app.utils.render import render_configuration
 
 # Import SQLAlchemy
 from flask_sqlalchemy import SQLAlchemy
-from config import TACPLUS_APP, TACPLUS_CONFIG, TACPLUS_SYSTEMD_SERVICE
+from config import TACPLUS_CONFIG
 
 # make sure the tmp directory exists
 if not os.path.exists(os.path.join(os.path.curdir, 'tmp')):
@@ -55,16 +52,12 @@ from app.tacacs.models import System
 from app.tacacs.models import Configuration
 from app.tacacs.models import ConfigurationGroups
 from app.tacacs.models import ConfigurationUsers
-from app.tacacs.models import Group
 from app.tacacs.models import GroupCommands
 from app.tacacs.models import TacacsUserGroups
-from app.tacacs.models import Command
-from app.tacacs.models import TacacsUser
 from app.tacacs.models import UserACL
 from app.tacacs.models import GroupACL
 
 # Utils
-from app.utils.tacacs.utils import encrypt_password
 from app.utils.tacacs.utils import verify_the_configuration
 import hashlib
 

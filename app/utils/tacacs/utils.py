@@ -1,21 +1,12 @@
-import sys
 import subprocess
 import hashlib
 import os
 import secrets
-from datetime import datetime
 from config import (
     BASE_DIR, TACPLUS_APP, TACPLUS_CONFIG, TACPLUS_SYSTEMD_SERVICE
 )
 
 DEBUG = os.environ.get("TACACSGUI_DEBUG", "0") == "1"
-
-def encrypt_password(password):
-    # Use PBKDF2-HMAC-SHA256 with a random salt
-    salt = secrets.token_bytes(16)
-    hash_bytes = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100_000)
-    # Store as hex for both salt and hash, separated by $
-    return f"{salt.hex()}${hash_bytes.hex()}"
 
 def csrf_token():
 	return secrets.token_hex(nbytes=16)
@@ -26,16 +17,6 @@ def is_valid_session(session, token):
 	if session.get("scrf_token", None) != token:
 		return False
 	return True
-
-def check_password(password_hash, password):
-    try:
-        salt_hex, stored_hash_hex = password_hash.split('$', 1)
-        salt = bytes.fromhex(salt_hex)
-        stored_hash = bytes.fromhex(stored_hash_hex)
-    except Exception:
-        return False
-    hash_bytes = hashlib.pbkdf2_hmac('sha256', bytes(password), salt, 100_000)
-    return hash_bytes == stored_hash
 
 def verify_the_configuration(configuration_file):
 	if subprocess.call([TACPLUS_APP, "-P", configuration_file]) == 0:
