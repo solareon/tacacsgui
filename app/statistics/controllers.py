@@ -1,21 +1,10 @@
 from flask import Blueprint, request, render_template, \
-                  flash, g, session, redirect, url_for, jsonify
+                  session, redirect, url_for
 from app import db
 
-from datetime import datetime
-
 from app.tacacs.models import System
-from app.tacacs.models import Configuration
-from app.tacacs.models import ConfigurationGroups
-from app.tacacs.models import ConfigurationUsers
-from app.tacacs.models import Group
-from app.tacacs.models import GroupCommands
-from app.tacacs.models import TacacsUserGroups
-from app.tacacs.models import Command
-from app.tacacs.models import TacacsUser
 
 # Utils
-from app.utils.tacacs.utils import encrypt_password
 
 mod_tac_plus_statistiscs = Blueprint('tac_plus_statistics', __name__)
 
