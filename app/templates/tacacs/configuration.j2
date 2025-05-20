@@ -23,12 +23,12 @@ id = tac_plus-ng {
     retire limit = 3000
 
     # Define external authentication module
-    mavis module = external {
-        exec = {{ mavis_module }}
-    }
+    #mavis module = external {
+    #    exec = {{ mavis_module }}
+    #}
 
     # Authentication backend
-    login backend = {{ login_backend }}
+    #login backend = {{ login_backend }}
 
     # Default host for all connections
     host = {{ default_host }} {
@@ -67,7 +67,7 @@ id = tac_plus-ng {
     {# Users #}
     {% for user in users %}
     user {{ user.username }} {
-        password login = crypt {{ user.encrypted_password }}
+        password login = pbkdf2 "{{ user.encrypted_password }}"
         {% if user.groups %}
         member = {{ user.groups | join(',') }}
         {% endif %}
