@@ -19,8 +19,8 @@ class System(Base):
 	# Log files path
 	log_files_path     = db.Column(db.String(128),  nullable=False, default="/var/log/tac_plus/")
 
-	# Configuration file location
-	cfg_file_path      = db.Column(db.String(128),  nullable=False, default="/usr/local/etc/tac_plus.cfg")
+	# Welcome Banner (was Configuration file location)
+	welcome_banner      = db.Column(db.String(128),  nullable=False, default="TACACS:")  # Now used for Welcome Banner
 
 	# Listen port
 	port_number        = db.Column(db.Integer,      nullable=False, default=49)
@@ -40,6 +40,14 @@ class System(Base):
 	min_instances     = db.Column(db.Integer,      nullable=False, default=1)
 	max_instances     = db.Column(db.Integer,      nullable=False, default=32)
 
+	# TACACS+ application path
+	tacplus_app        = db.Column(db.String(256),  nullable=False, default="/usr/local/sbin/tac_plus")
+
+	# TACACS+ configuration file path
+	tacplus_config     = db.Column(db.String(256),  nullable=False, default="/usr/local/etc/tac_plus.cfg")
+
+	# Systemd service name for TACACS+
+	tacplus_systemd_service = db.Column(db.String(128), nullable=False, default="tac_plus.service")
 
 class Configuration(Base):
 
@@ -104,10 +112,9 @@ class Command(Base):
 
 	id                 = db.Column(db.Integer,      primary_key=True)
 	name               = db.Column(db.String(128),  nullable=False)
-	permit_regex       = db.Column(db.String(512),  nullable=False)
-	deny_regex         = db.Column(db.String(512),  nullable=False)
-	permit_message     = db.Column(db.String(512),  nullable=False)
-	deny_message       = db.Column(db.String(512),  nullable=False)
+	regex       = db.Column(db.String(512),  nullable=False)
+	message     = db.Column(db.String(512),  nullable=False)
+	action       = db.Column(db.String(128),  nullable=False)
 
 class UserACL(Base):
 	__tablename__ = "tac_plus_user_acls"

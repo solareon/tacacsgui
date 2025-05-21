@@ -181,3 +181,5 @@ cython_debug/
 .cursorindexingignore
 
 tmp/
+tac_plus-ng.pdf
+tac_plus-ng.conf

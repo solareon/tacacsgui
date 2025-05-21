@@ -7,15 +7,7 @@
 	<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
   </head>
   <body class="bg-gray-100 min-h-screen">
-    <nav class="bg-gray-900 text-white flex space-x-4 px-4 py-3">
-      <a href="/tac_plus/configurations/" class="hover:text-blue-400">Configurations</a>
-      <a href="/tac_plus/users/" class="hover:text-blue-400">Users</a>
-      <a href="/tac_plus/groups/" class="hover:text-blue-400">Groups</a>
-      <a href="/tac_plus/commands/" class="hover:text-blue-400">Commands</a>
-      <a href="/tac_plus/system/" class="hover:text-blue-400">System</a>
-      <a href="/statistics/" class="hover:text-blue-400">Statistics</a>
-      <a href="/auth/logout/" class="ml-auto hover:text-red-400">Logout</a>
-    </nav>
+    {% include 'auth/_navigation.html' %}
     <main class="max-w-4xl mx-auto px-4">
       <section class="mb-12">
         <h1 class="text-2xl font-bold text-center mb-6">Authentications</h1>

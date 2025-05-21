@@ -1,7 +1,6 @@
 from flask import Blueprint, request, render_template, \
                   session, redirect, url_for, jsonify
 from app import db
-from config import TACPLUS_CONFIG
 
 # System libraries
 import os
@@ -34,7 +33,7 @@ import logging
 
 # Configure logging to console and file
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler("tacacs.log"),
@@ -52,18 +51,15 @@ def configurations():
 	configurations = Configuration.query.all()
 	return render_template("tacacs/configurations.html", configurations=configurations, status = request.args.get("status", None))
 
-@mod_tac_plus.route('/add_configuration/', methods=['GET', 'POST'])
+@mod_tac_plus.route('/add_configuration/', methods=['POST'])
 def add_configuration():
 	if not session.get("user_id", None):
 		return redirect(url_for('auth.signin'))
-	if request.method == "GET":
-		return render_template("tacacs/add_configuration.html")
-	else:
-		configuration = Configuration()
-		configuration.name = request.form.get("configuration_name", "")
-		db.session.add(configuration)
-		db.session.commit()
-		return redirect(url_for("tac_plus.configurations"))
+	configuration = Configuration()
+	configuration.name = request.form.get("configuration_name", "")
+	db.session.add(configuration)
+	db.session.commit()
+	return redirect(url_for("tac_plus.configurations"))
 
 @mod_tac_plus.route('/edit_configuration/', methods=['GET', 'POST'])
 def edit_configuration():
@@ -168,22 +164,18 @@ def edit_command():
 			return redirect(url_for('tac_plus.commands'))	
 
 
-@mod_tac_plus.route("/add_command/", methods=["GET", "POST"])
+@mod_tac_plus.route("/add_command/", methods=["POST"])
 def add_command():
 	if not session.get("user_id", None):
 		return redirect(url_for('auth.signin'))
-	if request.method == "GET":
-		return render_template("tacacs/add_command.html")
-	else:
-		command = Command()
-		command.name = request.form.get("command_name", "")
-		command.permit_regex = request.form.get("permit_regex", "")
-		command.permit_message = request.form.get("permit_message", "")
-		command.deny_regex = request.form.get("deny_regex", "")
-		command.deny_message = request.form.get("deny_message", "")
-		db.session.add(command)
-		db.session.commit()
-		return redirect(url_for('tac_plus.commands'))
+	command = Command()
+	command.name = request.form.get("command_name", "")
+	command.regex = request.form.get("regex", "")
+	command.message = request.form.get("message", "")
+	command.action = request.form.get("action", "")
+	db.session.add(command)
+	db.session.commit()
+	return redirect(url_for('tac_plus.commands'))
 
 
 @mod_tac_plus.route("/add_group/", methods=["POST"])
@@ -560,7 +552,6 @@ def edit_group():
         except Exception as e:
             logging.debug(e)
             return redirect(url_for('tac_plus.groups'))
-        return redirect(url_for('tac_plus.groups'))
 
 @mod_tac_plus.route('/system/', methods=['GET', 'POST'])
 def system():
@@ -576,14 +567,42 @@ def system():
 	else:
 		system = System.query.filter_by(id=request.form.get("system_id", "")).one()
 		system.log_files_path = request.form.get("log_files_path", "/var/log/tac_plus/")
-		system.cfg_file_path = request.form.get("cfg_file_path", "/usr/local/etc/tac_plus.cfg")
+		system.welcome_banner = request.form.get("welcome_banner", "/usr/local/etc/tac_plus.cfg")
 		system.port_number = int(request.form.get("port_number", 49))
 		system.mavis_exec = request.form.get("mavis_exec", "/usr/local/lib/mavis/mavis_tacplus_passwd.pl")
 		system.host_ip = request.form.get("host_ip", "0.0.0.0/0")
 		system.auth_key = request.form.get("auth_key", "my key")
 		system.login_backend = "mavis"
+		system.tacplus_app = request.form.get("tacplus_app", "/usr/local/sbin/tac_plus")
+		system.tacplus_config = request.form.get("tacplus_config", "/usr/local/etc/tac_plus.cfg")
+		system.tacplus_systemd_service = request.form.get("tacplus_systemd_service", "tac_plus.service")
 		db.session.commit()
 		return render_template("tacacs/system.html", system=system)
+
+def build_rendered_config(configuration_id):
+    system = System.query.first()
+    if not system:
+        return None, None, None, None
+    configuration_groups = ConfigurationGroups.query.filter_by(configuration_id=configuration_id).all()
+    groups = []
+    for configuration_group in configuration_groups:
+        group = {
+            "group": configuration_group.group,
+            "commands": [gc.command for gc in GroupCommands.query.filter_by(group_id=configuration_group.group.id).all()],
+            "acls": GroupACL.query.filter_by(group_id=configuration_group.group.id).all()
+        }
+        groups.append(group)
+    configuration_users = ConfigurationUsers.query.filter_by(configuration_id=configuration_id).all()
+    users = []
+    for configuration_user in configuration_users:
+        user = {
+            "user": configuration_user.user,
+            "groups": [ug.group for ug in TacacsUserGroups.query.filter_by(user_id=configuration_user.user.id)],
+            "acls": UserACL.query.filter_by(user_id=configuration_user.user.id).all()
+        }
+        users.append(user)
+    rendered_config = render_configuration(system, groups, users)
+    return system, rendered_config, groups, users
 
 @mod_tac_plus.route("/verify_configuration/", methods=["POST"])
 def verify_configuration():
@@ -592,43 +611,20 @@ def verify_configuration():
     configuration_id = request.form.get("config_id", "")
     if not re.match("[1-9]{1}[0-9]*", configuration_id):
         return redirect(url_for("tac_plus.configurations"))
-    system = System.query.first()
+    system, rendered_config, groups, users = build_rendered_config(configuration_id)
     if not system:
         logging.debug("Exiting no system configuration found...")
         return redirect(url_for("tac_plus.configurations"))
-    configuration = None
-    try:
-        configuration = Configuration.query.filter_by(id = configuration_id).one()
-    except Exception as e:
-        logging.debug(e)
-        return redirect(url_for("tac_plus.configurations"))
-    configuration_groups = ConfigurationGroups.query.filter_by(configuration_id = configuration_id).all()
-    groups = []
-    for configuration_group in configuration_groups:
-        group = {
-            "group": configuration_group.group,
-            "commands": [gc.command for gc in GroupCommands.query.filter_by(group_id = configuration_group.group.id).all()],
-            "acls": GroupACL.query.filter_by(group_id = configuration_group.group.id).all()
-        }
-        groups.append(group)
-    configuration_users = ConfigurationUsers.query.filter_by(configuration_id = configuration_id).all()
-    users = []
-    for configuration_user in configuration_users:
-        user = {
-            "user": configuration_user.user,
-            "groups": [ug.group for ug in TacacsUserGroups.query.filter_by(user_id = configuration_user.user.id)],
-            "acls": UserACL.query.filter_by(user_id = configuration_user.user.id).all()
-        }
-        users.append(user)
     temporary_configuration_file = os.path.join(os.path.curdir, 'tmp', secrets.token_hex(nbytes=16) + '.cfg')
-    rendered_config = render_configuration(system, groups, users)
+    if rendered_config is None:
+        return redirect(url_for("tac_plus.configurations", status="Error: Could not render configuration."))
     with open(os.path.abspath(temporary_configuration_file), "w") as temp_cfg_file:
         temp_cfg_file.write(rendered_config)
-        
     status = "Build status: Configuration file is OK!"
     if not verify_the_configuration(temporary_configuration_file):
         status = "Build status: Configuration file is NOT OK!"
-    return redirect(url_for("tac_plus.configurations", status = status))
+    os.remove(temporary_configuration_file)
+    return redirect(url_for("tac_plus.configurations", status=status))
 
 @mod_tac_plus.route("/deploy_configuration/", methods=["POST"])
 def deploy_configuration_route():
@@ -641,40 +637,28 @@ def deploy_configuration_route():
     for configuration in configurations:
         configuration.deployed = False
         db.session.commit()
-    system = System.query.first()
-    if not system:
-        logging.debug("Exiting no system configuration found...")
-        return redirect(url_for("tac_plus.configurations"))
-    configuration = None
     try:
-        configuration = Configuration.query.filter_by(id = configuration_id).one()
+        configuration = Configuration.query.filter_by(id=configuration_id).one()
         configuration.deployed = True
         db.session.commit()
     except Exception as e:
         return redirect(url_for("tac_plus.configurations"))
-    configuration_groups = ConfigurationGroups.query.filter_by(configuration_id = configuration_id).all()
-    groups = []
-    for configuration_group in configuration_groups:
-        group = {
-            "group": configuration_group.group,
-            "commands": [gc.command for gc in GroupCommands.query.filter_by(group_id = configuration_group.group.id).all()],
-            "acls": GroupACL.query.filter_by(group_id = configuration_group.group.id).all()
-        }
-        groups.append(group)
-    configuration_users = ConfigurationUsers.query.filter_by(configuration_id = configuration_id).all()
-    users = []
-    for configuration_user in configuration_users:
-        user = {
-            "user": configuration_user.user,
-            "groups": [ug.group for ug in TacacsUserGroups.query.filter_by(user_id = configuration_user.user.id)],
-            "acls": UserACL.query.filter_by(user_id = configuration_user.user.id).all()
-        }
-        users.append(user)
+    system, rendered_config, groups, users = build_rendered_config(configuration_id)
+    if not system:
+        logging.debug("Exiting no system configuration found...")
+        return redirect(url_for("tac_plus.configurations"))
     temporary_configuration_file = os.path.join(os.path.curdir, 'tmp', secrets.token_hex(nbytes=16) + '.cfg')
-    rendered_config = render_configuration(system, groups, users)
+    if rendered_config is None:
+        status = "Error: Could not render configuration."
+        return redirect(url_for("tac_plus.configurations", status=status))
     with open(temporary_configuration_file, "w") as fd:
         fd.write(rendered_config)
-    # Optionally, add config verification logic here
-    os.rename(temporary_configuration_file, TACPLUS_CONFIG)
-    status = "Build status: Configuration file is OK! It will roughly take 1 minute for the configuration to take effect"
-    return redirect(url_for("tac_plus.configurations", status = status))
+    if not verify_the_configuration(temporary_configuration_file):
+        status = "Build status: Configuration file is NOT OK!"
+    # Move to /tacacsgui/tac_plus-ng.conf and touch /tacacsgui/reload_tacacs_cfg
+    import shutil
+    shutil.move(temporary_configuration_file, "/opt/tacacsgui/tac_plus-ng.conf")
+    with open("/opt/tacacsgui/reload_tacacs_cfg", "a"):
+        os.utime("/opt/tacacsgui/reload_tacacs_cfg", None)
+    status = "Build status: Configuration file is OK! Deploy in progress..."
+    return redirect(url_for("tac_plus.configurations", status=status))

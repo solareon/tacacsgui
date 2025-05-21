@@ -13,6 +13,7 @@ def build_jinja2_context(system, groups, users):
         "login_backend": "mavis",
         "default_host": system.host_ip,
         "authentication_key": system.auth_key,
+        "default_banner": system.welcome_banner,
         "groups": [],
         "users": [],
     }
@@ -27,6 +28,7 @@ def build_jinja2_context(system, groups, users):
             "default_service": (
                 "default service = deny" if group_obj.deny_default_service else None
             ),
+            "cmd_default_policy": group_obj.cmd_default_policy,
             "privilege_level": group_obj.default_privilege,
             "access": "\n".join(
                 f'client = {"permit" if acl.access == "allow" else "deny"} {acl.ip}/{acl.mask}'
@@ -39,16 +41,14 @@ def build_jinja2_context(system, groups, users):
         for command in group["commands"]:
             commands_groupped.setdefault(command.name, []).append(command)
         for command_name, command_list in commands_groupped.items():
-            permit = "".join(f"permit {cmd.permit_regex}\n" for cmd in command_list)
-            deny = "".join(
-                f"deny {cmd.deny_regex}\n" if cmd.deny_regex else "deny .\n"
-                for cmd in command_list
-            )
-            group_dict["cmds"].append({
-                "name": command_name,
-                "permit": permit,
-                "deny": deny,
-            })
+            # Only one command per name is expected in this model
+            for cmd in command_list:
+                group_dict["cmds"].append({
+                    "name": cmd.name,
+                    "action": cmd.action,
+                    "regex": cmd.regex,
+                    "message": cmd.message,
+                })
         context["groups"].append(group_dict)
 
     for user in users:
@@ -56,7 +56,7 @@ def build_jinja2_context(system, groups, users):
         user_dict = {
             "username": user_obj.name,
             "encrypted_password": user_obj.password_hash,
-            "groups": "".join(f"member = {g.name}\n" for g in user["groups"]),
+            "groups": "".join(f"profile = {g.name}\n" for g in user["groups"]),
             "access": "\n".join(
                 f'client = {"permit" if acl.access == "allow" else "deny"} {acl.ip}/{acl.mask}'
                 for acl in user["acls"]

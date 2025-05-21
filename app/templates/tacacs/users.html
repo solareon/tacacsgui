@@ -5,15 +5,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
   <body class="bg-gray-100 min-h-screen">
-    <nav class="bg-gray-900 text-white flex space-x-4 px-4 py-3">
-      <a href="/tac_plus/configurations/" class="hover:text-blue-400">Configurations</a>
-      <a href="/tac_plus/users/" class="hover:text-blue-400">Users</a>
-      <a href="/tac_plus/groups/" class="hover:text-blue-400">Groups</a>
-      <a href="/tac_plus/commands/" class="hover:text-blue-400">Commands</a>
-      <a href="/tac_plus/system/" class="hover:text-blue-400">System</a>
-      <a href="/statistics/" class="hover:text-blue-400">Statistics</a>
-      <a href="/auth/logout/" class="ml-auto hover:text-red-400">Logout</a>
-    </nav>
+    {% include 'auth/_navigation.html' %}
     <div class="flex justify-center mt-10">
       <div class="w-full max-w-4xl bg-white rounded shadow p-8">
         <button type="button" onclick="document.getElementById('addUserModal').classList.remove('hidden')" class="block mb-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-center">Add new user</button>
@@ -28,7 +20,7 @@
               </div>
               <div>
                 <label for="password" class="block text-gray-700 font-bold mb-1">Password</label>
-                <input type="text" id="password" name="password" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400" required>
+                <input type="password" id="password" name="password" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400" required>
               </div>
               <div class="flex justify-end">
                 <button type="button" onclick="document.getElementById('addUserModal').classList.add('hidden')" class="mr-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancel</button>

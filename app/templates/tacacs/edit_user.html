@@ -5,15 +5,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
   <body class="bg-gray-100 min-h-screen">
-    <nav class="bg-gray-900 text-white flex space-x-4 px-4 py-3">
-      <a href="/tac_plus/configurations/" class="hover:text-blue-400">Configurations</a>
-      <a href="/tac_plus/users/" class="hover:text-blue-400">Users</a>
-      <a href="/tac_plus/groups/" class="hover:text-blue-400">Groups</a>
-      <a href="/tac_plus/commands/" class="hover:text-blue-400">Commands</a>
-      <a href="/tac_plus/system/" class="hover:text-blue-400">System</a>
-      <a href="/statistics/" class="hover:text-blue-400">Statistics</a>
-      <a href="/auth/logout/" class="ml-auto hover:text-red-400">Logout</a>
-    </nav>
+    {% include 'auth/_navigation.html' %}
     <div class="flex justify-center mt-10">
       <div class="w-full max-w-4xl bg-white rounded shadow p-8">
         <form method="POST" action="." accept-charset="UTF-8" class="space-y-6">

@@ -1,4 +1,4 @@
-#!/usr/local/sbin/tac_plus
+#!/usr/local/sbin/tac_plus-ng
 id = spawnd {
     background = no
     listen = { port = {{ listen_port }} }
@@ -31,34 +31,24 @@ id = tac_plus-ng {
     #login backend = {{ login_backend }}
 
     # Default host for all connections
-    host = {{ default_host }} {
+    host = world {
+        address = {{ default_host }}
         key = "{{ authentication_key }}"
+        {% if default_banner %}
+        welcome banner = "\n{{ default_banner }}\n"
+        {% endif %}
     }
 
     {# Groups #}
     {% for group in groups %}
     profile {{ group.name }} {
-        {% if group.enable_password %}
-        enable password = {{ group.enable_password }}
-        {% endif %}
-        {% if group.default_service %}
-        default service = {{ group.default_service }}
-        {% endif %}
-        {% if group.access %}
-        {{ group.access }}
-        {% endif %}
-        service = shell {
-            default cmd = {{ group.default_cmd }}
-            set priv-lvl = {{ group.privilege_level }}
+        enable 15 = login
+        script {
+            if (service == shell)
+                if (cmd == "")
+                    {{ group.cmd_default_policy }}
             {% for cmd in group.cmds %}
-            cmd = {{ cmd.name }} {
-                {% if cmd.permit %}
-                {{ cmd.permit }}
-                {% endif %}
-                {% if cmd.deny %}
-                {{ cmd.deny }}
-                {% endif %}
-            }
+            if (cmd =~ "{{ cmd.regex }}") {{cmd.action}}
             {% endfor %}
         }
     }
@@ -67,9 +57,11 @@ id = tac_plus-ng {
     {# Users #}
     {% for user in users %}
     user {{ user.username }} {
-        password login = pbkdf2 "{{ user.encrypted_password }}"
+        password {
+            login = pbkdf2 "{{ user.encrypted_password }}"
+        }
         {% if user.groups %}
-        member = {{ user.groups | join(',') }}
+        {{ user.groups }}
         {% endif %}
     }
     {% endfor %}

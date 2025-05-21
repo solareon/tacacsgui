@@ -2,9 +2,8 @@ import subprocess
 import hashlib
 import os
 import secrets
-from config import (
-    BASE_DIR, TACPLUS_APP, TACPLUS_CONFIG, TACPLUS_SYSTEMD_SERVICE
-)
+from app.tacacs.models import System
+from config import BASE_DIR
 
 DEBUG = os.environ.get("TACACSGUI_DEBUG", "0") == "1"
 
@@ -18,24 +17,35 @@ def is_valid_session(session, token):
 		return False
 	return True
 
+def get_system_config():
+    from app import db
+    return System.query.first()
+
 def verify_the_configuration(configuration_file):
-	if subprocess.call([TACPLUS_APP, "-P", configuration_file]) == 0:
-		return True
-	return False
+    system = get_system_config()
+    tacplus_app = system.tacplus_app if system and system.tacplus_app else "/usr/local/sbin/tac_plus-ng"
+    if subprocess.call([tacplus_app, "-P", configuration_file]) == 0:
+        return True
+    return False
 
 def deploy_configuration(configuration_file):
-	copy_status = (subprocess.call(["cp", "-v", configuration_file, "/usr/local/etc/tac_plus.cfg"]) == 0)
-	restart_status = (subprocess.call(["/etc/init.d/tac_plus", "restart"]) == 0)
-	return (copy_status and restart_status)
+    system = get_system_config()
+    tacplus_config = system.tacplus_config if system and system.tacplus_config else "/usr/local/etc/tac_plus.cfg"
+    tacplus_service = system.tacplus_systemd_service if system and system.tacplus_systemd_service else "tac_plus.service"
+    copy_status = (subprocess.call(["cp", "-v", configuration_file, tacplus_config]) == 0)
+    restart_status = (subprocess.call(["/etc/init.d/tac_plus", "restart"]) == 0)
+    return (copy_status and restart_status)
 
 def update_tac_plus_configuration():
     """
     Updates the tac_plus configuration if there are changes.
     """
+    from app import db
+    system = get_system_config()
     temp_dir = os.path.join(BASE_DIR, 'temp')
     os.makedirs(temp_dir, exist_ok=True)
 
-    config_path = TACPLUS_CONFIG
+    config_path = system.tacplus_config if system and system.tacplus_config else "/usr/local/etc/tac_plus.cfg"
     temp_config_path = os.path.join(temp_dir, 'tac_plus.cfg')
 
     # Calculate SHA sums for the deployed and to-be-deployed configuration files
@@ -48,10 +58,11 @@ def update_tac_plus_configuration():
         # Restart the tac_plus service
         try:
             result = subprocess.run(["systemctl", "list-units", "--type=service"], capture_output=True, text=True)
-            if TACPLUS_SYSTEMD_SERVICE in result.stdout:
+            tacplus_service = system.tacplus_systemd_service if system and system.tacplus_systemd_service else "tac_plus-ng.service"
+            if tacplus_service in result.stdout:
                 if DEBUG:
-                    print(f"Systemd service {TACPLUS_SYSTEMD_SERVICE} found. Restarting...")
-                subprocess.run(["systemctl", "restart", TACPLUS_SYSTEMD_SERVICE], check=True)
+                    print(f"Systemd service {tacplus_service} found. Restarting...")
+                subprocess.run(["systemctl", "restart", tacplus_service], check=True)
             else:
                 print("Using init.d to manage tac_plus...")
                 subprocess.run(["/etc/init.d/tac_plus", "stop"], check=True)
