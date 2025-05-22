@@ -1,0 +1,7 @@
+[Unit]
+Description=Send SIGHUP to myapp and remove trigger file
+After=tacacs-ng.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c '/usr/local/sbin/tac_plus-ng -P /opt/tacacsgui/tac_plus-ng.conf && cp /opt/tacacsgui/tac_plus-ng.conf /etc/tacacs/tac_plus-ng.conf && systemctl kill -s HUP tacacs-ng.service && rm -f /opt/tacacsgui/reload_tacacs_cfg'

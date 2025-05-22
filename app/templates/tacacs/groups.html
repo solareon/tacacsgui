@@ -1,55 +1,110 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>TACACS+ configuration and monitoring utility</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
-  <body>
-    <div class="header">
-      <div class="link"><a href="/tac_plus/configurations/">Configurations</a></div>
-      <div class="link"><a href="/tac_plus/users/">Users</a></div>
-      <div class="link"><a href="/tac_plus/groups/">Groups</a></div>
-      <div class="link"><a href="/tac_plus/commands/">Commands</a></div>
-      <div class="link"><a href="/tac_plus/system/">System</a></div>
-      <div class="link"><a href="/statistics/">Statistics</a></div>
-      <div class="link"><a href="/auth/logout/">Logout</a></div>
-    </div>
-    <div class="row">
-      <div class="col-1"></div>
-      <div class="col-10">
-        <a href="/tac_plus/add_group/" class="btn btn-primary form-control">Add new group</a>
-        <table class="table table-dark table-striped">
+  <body class="bg-gray-100 min-h-screen">
+    {% include 'auth/_navigation.html' %}
+    <div class="flex justify-center mt-10">
+      <div class="w-full max-w-4xl bg-white rounded shadow p-8">
+        <!-- Add Group Modal Trigger -->
+        <button id="openAddGroupModal" class="block mb-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-center">Add new group</button>
+
+        <!-- Add Group Modal -->
+        <div id="addGroupModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 hidden">
+          <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative">
+            <button id="closeAddGroupModal" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">&times;</button>
+            <h2 class="text-xl font-bold mb-4">Add New Group</h2>
+            <form method="POST" action="/tac_plus/add_group/">
+              <div class="mb-4">
+                <label class="block text-gray-700">Group Name</label>
+                <input type="text" name="group_name" required class="w-full border rounded px-3 py-2" />
+              </div>
+              <div class="mb-4">
+                <label class="block text-gray-700">Valid Until</label>
+                <input type="date" name="valid_until" id="valid_until" class="w-full border rounded px-3 py-2" />
+              </div>
+              <div class="mb-4">
+                <label class="block text-gray-700">Command Default Policy</label>
+                <select name="cmd_default_policy" class="w-full border rounded px-3 py-2" required>
+                  <option value="permit">permit</option>
+                  <option value="deny">deny</option>
+                </select>
+              </div>
+              <div class="mb-4">
+                <label class="block text-gray-700">Default Privilege</label>
+                <select name="default_privilege" class="w-full border rounded px-3 py-2" required>
+                  {% for i in range(1, 16) %}
+                    <option value="{{ i }}">{{ i }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="mb-4 flex items-center">
+                <input type="checkbox" name="is_enable_pass" id="is_enable_pass" class="mr-2" />
+                <label for="is_enable_pass" class="text-gray-700">Enable Password</label>
+              </div>
+              <div class="mb-4 flex items-center">
+                <input type="checkbox" name="deny_default_service" id="deny_default_service" class="mr-2" />
+                <label for="deny_default_service" class="text-gray-700">Deny Default Service</label>
+              </div>
+              <div class="mb-4">
+                <label class="block text-gray-700">Enable Pass</label>
+                <input type="text" name="enable_pass" class="w-full border rounded px-3 py-2" />
+              </div>
+              <div class="flex justify-end">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Add Group</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <script>
+          const openBtn = document.getElementById('openAddGroupModal');
+          const closeBtn = document.getElementById('closeAddGroupModal');
+          const modal = document.getElementById('addGroupModal');
+          openBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+          closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+          window.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.add('hidden');
+          });
+          // Set default date for 'valid_until' to 365 days in the future
+          document.addEventListener('DOMContentLoaded', function() {
+            const validUntilInput = document.getElementById('valid_until');
+            if (validUntilInput) {
+              const now = new Date();
+              now.setDate(now.getDate() + 365);
+              const year = now.getFullYear();
+              const month = String(now.getMonth() + 1).padStart(2, '0');
+              const day = String(now.getDate()).padStart(2, '0');
+              validUntilInput.value = `${year}-${month}-${day}`;
+            }
+          });
+        </script>
+
+        <table class="min-w-full bg-white border border-gray-300 rounded">
           <thead>
-            <tr>
-              <td>Group name</td>
-              <td>Default cmd</td>
-              <td>Default privilige level</td>
-              <td>Is enable password set</td>
-              <td>Valid until</td>
-              <td>Action</td>
+            <tr class="bg-gray-200">
+              <th class="py-2 px-4 border-b">Group name</th>
+              <th class="py-2 px-4 border-b">Action</th>
             </tr>
           </thead>
           <tbody>
             {% for group in groups %}
-              <tr>
-                <td>{{ group.name }}</td>
-                <td>{{ group.cmd_default_policy }}</td>
-                <td>{{ group.default_privilege }}</td>
-                <td>
-                  {% if group.is_enable_pass %}
-                    True
-                  {% else %}
-                    False
-                  {% endif %}
+              <tr class="border-b hover:bg-gray-100">
+                <td class="py-2 px-4">{{ group.name }}</td>
+                <td class="py-2 px-4">
+                  <form method="POST" action="/tac_plus/delete_group/" style="display:inline">
+                    <input type="hidden" name="group_id" value="{{ group.id }}">
+                    <button type="submit" class="text-red-600 hover:underline bg-transparent border-none p-0 m-0 cursor-pointer">Delete</button>
+                  </form> |
+                  <a href="/tac_plus/edit_group/?group_id={{ group.id }}" class="text-blue-600 hover:underline">Edit</a>
                 </td>
-                <td>{{ group.valid_until }}</td>
-                <td><a href="/tac_plus/delete_group/?group_id={{ group.id }}">Delete</a><br/><a href="/tac_plus/edit_group/?group_id={{ group.id }}">Edit</a></td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
-      <div class="col-1"></div>
     </div>
   </body>
 </html>

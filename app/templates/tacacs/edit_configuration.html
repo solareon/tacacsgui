@@ -1,166 +1,103 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>TACACS+ configuration and monitoring utility</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
-    <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
-  <body>
-    <div class="header">
-      <div class="link"><a href="/tac_plus/configurations/">Configurations</a></div>
-      <div class="link"><a href="/tac_plus/users/">Users</a></div>
-      <div class="link"><a href="/tac_plus/groups/">Groups</a></div>
-      <div class="link"><a href="/tac_plus/commands/">Commands</a></div>
-      <div class="link"><a href="/tac_plus/system/">System</a></div>
-      <div class="link"><a href="/statistics/">Statistics</a></div>
-      <div class="link"><a href="/auth/logout/">Logout</a></div>
-    </div>
-    <script>
-      var groups_all = [];
-      function select_group(group_id) {
-        for (var i = 0; i < groups_all.length; i++) {
-          if (group_id == groups_all[i]["id"]) {
-            $("#group").val(groups_all[i]["name"]);
-            $("#group_id").val(group_id);
-            $("#groups_to_add").css("display", "none");
-            $.getJSON("/tac_plus/add_group_to_configuration/", {
-              config_id: $("#configuration_id").val(),
-              group_id: group_id
-            })
-            .done(function(data) {
-              location.reload(); 
-            });
-          }
-        }
-        return false;
-      }
-      function search_groups() {
-        if ($("#group").val() == "") {
-          $("#groups_to_add").css("display", "none");
-        }
-        $.getJSON("/tac_plus/groups_json/", {
-          group: $("#group").val()
-        })
-        .done(function(groups) {
-          groups_all = groups;
-          var html = "<table class='table table-dark'><thead><tr><td>Action</td><td>Group name</td></thead><tbody>"
-          $.each(groups, function(i, group) {
-            html += "<tr><td>";
-            html += "<a href='' onclick='select_group(" + group["id"] + "); event.preventDefault()'>Add</a>";
-            html += "</td><td>";
-            html += group["name"]
-            html += "</td></tr>";
-          });
-          html += "</tbody></table>";
-          $("#groups_to_add").html(html);
-          $("#groups_to_add").css("display", "block");
-        }); 
-      }
-      var users_all = [];
-      function select_user(user_id) {
-        
-        for (var i = 0; i < users_all.length; i++) {
-          if (user_id == users_all[i]["id"]) {
-            $("#user").val(users_all[i]["name"]);
-            $("#user_id").val(user_id);
-            $("#users_to_add").css("display", "none");
-            $.getJSON("/tac_plus/add_user_to_configuration/", {
-              config_id: $("#configuration_id").val(),
-              user_id: user_id
-            })
-            .done(function(data) {
-              location.reload(); 
-            });
-          }
-        }
-        return false;
-      }
-      function search_users() {
-        if ($("#user").val() == "") {
-          $("#users_to_add").css("display", "none");
-        }
-        $.getJSON("/tac_plus/users_json/", {
-          user: $("#user").val()
-        })
-        .done(function(users) {
-          users_all = users;
-          var html = "<table class='table table-dark'><thead><tr><td>Action</td><td>Username</td></thead><tbody>"
-          $.each(users, function(i, user) {
-            html += "<tr><td>";
-            html += "<a href='' onclick='select_user(" + user["id"] + "); event.preventDefault()'>Add</a>";
-            html += "</td><td>";
-            html += user["name"]
-            html += "</td></tr>";
-          });
-          html += "</tbody></table>";
-          $("#users_to_add").html(html);
-          $("#users_to_add").css("display", "block");
-        }); 
-      }
-    </script>
-    <div class="row">
-      <div class="col-1"></div>
-      <div class="col-10">
-        <form method="POST" action="." accept-charset="UTF-8">
-          <div class="form-group">
-            <input type="hidden" class="form-control" id="configuration_id" name="configuration_id" value="{{configuration.id}}">
+  <body class="bg-gray-100 min-h-screen">
+    {% include 'auth/_navigation.html' %}
+    <div class="flex justify-center mt-10">
+      <div class="w-full max-w-4xl bg-white rounded shadow p-8">
+        <form method="POST" action="." accept-charset="UTF-8" class="space-y-6">
+          <input type="hidden" id="configuration_id" name="configuration_id" value="{{configuration.id}}">
+          <div>
+            <label for="name" class="block text-gray-700 font-bold mb-2">Configuration name</label>
+            <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="name" name="name" placeholder="Configuration name" value="{{configuration.name}}">
           </div>
-          <div class="form-group">
-            <label for="name">Configuration name</label>
-            <input type="text" class="form-control" id="name" name="name" placeholder="Configuration name" value="{{configuration.name}}">
-          </div>
-          <div class="form-group">
-            <table class="table table-dark table-striped">
+          <div class="mt-6">
+            <table class="min-w-full bg-white border border-gray-300 rounded">
               <thead>
-                <tr>
-                  <td>Group name</td>
-                  <td>Action</td>
+                <tr class="bg-gray-200">
+                  <th class="py-2 px-4 border-b">Group name</th>
+                  <th class="py-2 px-4 border-b">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {% for group in groups %}
-                  <tr>
-                    <td>{{ group.name }}</td>
-                    <td><a href="/tac_plus/delete_group_from_configuration/?group_id={{ group.id }}&config_id={{configuration.id}}">Delete</a></td>
+                  <tr class="border-b hover:bg-gray-100">
+                    <td class="py-2 px-4">{{ group.name }}</td>
+                    <td class="py-2 px-4">
+                      <form method="POST" action="/tac_plus/delete_group_from_configuration/" style="display:inline;">
+                        <input type="hidden" name="group_id" value="{{ group.id }}">
+                        <input type="hidden" name="config_id" value="{{ configuration.id }}">
+                        <button type="submit" class="text-red-600 hover:underline bg-transparent border-none p-0 m-0">Remove</button>
+                      </form>
+                    </td>
                   </tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
-          <div class="form-group">
-            <label for="group">Group to add</label>
-            <input type="text" class="form-control" id="group" name="group" autocomplete="off" placeholder="Type group name" onkeypress="search_groups()">
-            <div id="groups_to_add">
-            </div>
-          </div>
-          <div class="form-group">
-            <table class="table table-dark table-striped">
+          <div class="mt-6">
+            <table class="min-w-full bg-white border border-gray-300 rounded">
               <thead>
-                <tr>
-                  <td>Username</td>
-                  <td>Action</td>
+                <tr class="bg-gray-200">
+                  <th class="py-2 px-4 border-b">User name</th>
+                  <th class="py-2 px-4 border-b">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {% for user in users %}
-                  <tr>
-                    <td>{{ user.name }}</td>
-                    <td><a href="/tac_plus/delete_user_from_configuration/?user_id={{ user.id }}&config_id={{configuration.id}}">Delete</a></td>
+                  <tr class="border-b hover:bg-gray-100">
+                    <td class="py-2 px-4">{{ user.name }}</td>
+                    <td class="py-2 px-4">
+                      <form method="POST" action="/tac_plus/delete_user_from_configuration/" style="display:inline;">
+                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                        <input type="hidden" name="config_id" value="{{ configuration.id }}">
+                        <button type="submit" class="text-red-600 hover:underline bg-transparent border-none p-0 m-0">Remove</button>
+                      </form>
+                    </td>
                   </tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
-          <div class="form-group">
-            <label for="user">User to add</label>
-            <input type="text" class="form-control" id="user" name="user" autocomplete="off" placeholder="Type user name" onkeypress="search_users()">
-            <div id="users_to_add">
-            </div>
-          </div>
-          <button type="submit" class="btn btn-primary form-control">Save</button>
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Save</button>
         </form>
+        <!-- Add group and user to configuration forms in the same row -->
+        <div class="mt-6 flex flex-col sm:flex-row sm:space-x-6 items-start w-full">
+          <!-- Add group to configuration form -->
+          <form method="post" action="/tac_plus/add_group_to_configuration/" class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 items-center w-full sm:w-auto">
+            <input type="hidden" name="config_id" value="{{ configuration.id }}">
+            <label for="group_id" class="block text-gray-700 font-bold mb-1 sm:mb-0 whitespace-nowrap">Add group:</label>
+            <select name="group_id" id="group_id" class="w-48 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400"
+              {% set available_groups = all_groups|rejectattr('id', 'in', groups|map(attribute='id')|list)|list %}
+              {% if not available_groups %}disabled{% endif %}>
+              {% for group in available_groups %}
+                <option value="{{ group.id }}">{{ group.name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit"
+              class="bg-blue-500 text-white font-bold py-1 px-3 rounded disabled:opacity-50{% if available_groups %} hover:bg-blue-700{% endif %}"
+              {% if not available_groups %}disabled{% endif %}>Add</button>
+          </form>
+          <!-- Add user to configuration form -->
+          <form method="post" action="/tac_plus/add_user_to_configuration/" class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 items-center w-full sm:w-auto mt-4 sm:mt-0">
+            <input type="hidden" name="config_id" value="{{ configuration.id }}">
+            <label for="user_id" class="block text-gray-700 font-bold mb-1 sm:mb-0 whitespace-nowrap">Add user:</label>
+            <select name="user_id" id="user_id" class="w-48 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400"
+              {% set available_users = all_users|rejectattr('id', 'in', users|map(attribute='id')|list)|list %}
+              {% if not available_users %}disabled{% endif %}>
+              {% for user in available_users %}
+                <option value="{{ user.id }}">{{ user.name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit"
+              class="bg-blue-500 text-white font-bold py-1 px-3 rounded disabled:opacity-50{% if available_users %} hover:bg-blue-700{% endif %}"
+              {% if not available_users %}disabled{% endif %}>Add</button>
+          </form>
+        </div>
       </div>
-      <div class="col-1"></div>
     </div>
   </body>
 </html>

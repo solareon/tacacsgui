@@ -1,112 +1,126 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>TACACS+ configuration and monitoring utility</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
-    <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
-  <body>
-    <script>
-      var groups_all = [];
-      function select_group(group_id) {
-        for (var i = 0; i < groups_all.length; i++) {
-          if (group_id == groups_all[i]["id"]) {
-            $("#group").val(groups_all[i]["name"]);
-            $("#group_id").val(group_id);
-            $("#groups").css("display", "none");
-            $.getJSON("/tac_plus/add_group_to_user/", {
-              user_id: $("#user_id").val(),
-              group_id: $("#group_id").val()
-            })
-            .done(function(data) {
-              location.reload(); 
-            });
-            
-          }
-        }
-        return false;
-      }
-      function search_groups() {
-        if ($("#group").val() == "") {
-          $("#groups").css("display", "none");
-        }
-        $.getJSON("/tac_plus/groups_json/", {
-          group: $("#group").val()
-        })
-        .done(function(groups) {
-          groups_all = groups;
-          var html = "<table class='table table-dark'><thead><tr><td>Action</td><td>Group name</td></tr></thead><tbody>"
-          $.each(groups, function(i, group) {
-            html += "<tr><td>";
-            html += "<a href='' onclick='select_group(" + group["id"] + "); event.preventDefault()'>Add</a>";
-            html += "</td><td>"
-            html += group["name"]
-            html += "</td></tr>";
-          });
-          html += "</tbody></table>";
-          $("#groups").html(html);
-          $("#groups").css("display", "block");
-        });
-      }
-    </script>
-    <div class="header">
-      <div class="link"><a href="/tac_plus/configurations/">Configurations</a></div>
-      <div class="link"><a href="/tac_plus/users/">Users</a></div>
-      <div class="link"><a href="/tac_plus/groups/">Groups</a></div>
-      <div class="link"><a href="/tac_plus/commands/">Commands</a></div>
-      <div class="link"><a href="/tac_plus/system/">System</a></div>
-      <div class="link"><a href="/statistics/">Statistics</a></div>
-      <div class="link"><a href="/auth/logout/">Logout</a></div>
-    </div>
-    <div class="row">
-      <div class="col-1"></div>
-      <div class="col-10">
-        <form method="POST" action="." accept-charset="UTF-8">
-          <div class="form-group">
-            <input type="hidden" class="form-control" id="user_id" name="user_id" value="{{user.id}}">
+  <body class="bg-gray-100 min-h-screen">
+    {% include 'auth/_navigation.html' %}
+    <div class="flex justify-center mt-10">
+      <div class="w-full max-w-4xl bg-white rounded shadow p-8">
+        <form method="POST" action="." accept-charset="UTF-8" class="space-y-6">
+          <input type="hidden" id="user_id" name="user_id" value="{{user.id}}">
+          <div>
+            <label for="user_name" class="block text-gray-700 font-bold mb-2">User name</label>
+            <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="user_name" name="user_name" placeholder="User name" value="{{user.name}}">
           </div>
-          <div class="form-group">
-            <label for="user_name">Username</label>
-            <input type="text" class="form-control" id="user_name" name="user_name" placeholder="Username" value="{{user.name}}">
+          <div>
+            <label for="password" class="block text-gray-700 font-bold mb-2">Password</label>
+            <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="password" name="password" placeholder="Password">
           </div>
-          <div class="form-group">
-            <label for="password">Encrypted password</label>
-            <input type="text" class="form-control" id="password" name="password" placeholder="Password" value="{{user.password}}">
-          </div>
-          <div class="form-group">
-            <label for="user_groups">Groups added to user</label>
-            <div id="user_groups" class="form-group">
-              <table class="table table-dark table-striped">
-                <thead>
-                  <tr>
-                    <td>Group name</td>
-                    <td>Action</td>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for group in groups %}
-                    <tr>
-                      <td>{{ group.name }}</td>
-                      <td><a href="/tac_plus/delete_group_from_user/?user_id={{ user.id }}&group_id={{group.id}}">Delete</a></td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="group">Group to add</label>
-            <input type="text" class="form-control" id="group" name="group" autocomplete="off" placeholder="Type the group" onkeypress="search_groups()">
-            <div id="groups">
-            </div>
-          </div>
-          <div class="form-group">
-            <input type="hidden" class="form-control" id="group_id" name="group_id">
-          </div>
-          <button type="submit" class="btn btn-primary form-control">Update</button>
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Update</button>
         </form>
+        <div class="mt-8">
+          <h2 class="text-lg font-bold mb-2">Groups</h2>
+          <table class="min-w-full bg-white border border-gray-300 rounded mb-4">
+            <thead>
+              <tr class="bg-gray-200">
+                <th class="py-2 px-4 border-b">Group name</th>
+                <th class="py-2 px-4 border-b">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for group in groups %}
+                <tr class="border-b hover:bg-gray-100">
+                  <td class="py-2 px-4">{{ group.name }}</td>
+                  <td class="py-2 px-4">
+                    <form method="POST" action="/tac_plus/delete_group_from_user/" style="display:inline;">
+                      <input type="hidden" name="user_id" value="{{ user.id }}">
+                      <input type="hidden" name="group_id" value="{{ group.id }}">
+                      <button type="submit" class="text-red-600 hover:underline bg-transparent border-none p-0 m-0">Remove</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <!-- Add group and ACL to user forms in the same row -->
+        <div class="mt-6 flex flex-col sm:flex-row sm:space-x-6 items-start w-full">
+          <!-- Add group to user form -->
+          <form method="POST" action="/tac_plus/add_group_to_user/" class="mb-6 flex items-center space-x-4">
+            <input type="hidden" name="user_id" value="{{ user.id }}">
+            <label for="group_id" class="block text-gray-700 font-bold mb-1 sm:mb-0 whitespace-nowrap">Add to group:</label>
+            <select id="group_id" name="group_id" class="w-48 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400">
+              {% for group in available_groups %}
+                {% if group.id not in user_group_ids %}
+                  <option value="{{ group.id }}">{{ group.name }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Add</button>
+          </form>
+        </div>
+        <div class="flex items-center justify-between mb-2 mt-6">
+          <h2 class="text-lg font-bold">ACLs</h2>
+          <button type="button" onclick="document.getElementById('aclModal').classList.remove('hidden')" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Add ACL</button>
+        </div>
+        <table class="min-w-full bg-white border border-gray-300 rounded mb-4">
+          <thead>
+            <tr class="bg-gray-200">
+              <th class="py-2 px-4 border-b text-left">IP</th>
+              <th class="py-2 px-4 border-b text-left">Mask</th>
+              <th class="py-2 px-4 border-b text-left">Access</th>
+              <th class="py-2 px-4 border-b text-left">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for acl in acls %}
+              <tr class="border-b hover:bg-gray-100">
+                <td class="py-2 px-4">{{ acl.ip }}</td>
+                <td class="py-2 px-4">{{ acl.mask }}</td>
+                <td class="py-2 px-4">{{ acl.access }}</td>
+                <td class="py-2 px-4">
+                  <form method="POST" action="/tac_plus/delete_acl_from_user/" style="display:inline;">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <input type="hidden" name="acl_id" value="{{ acl.id }}">
+                    <button type="submit" class="text-red-600 hover:underline bg-transparent border-none p-0 m-0">Delete</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <!-- ACL Modal -->
+        <div id="aclModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 hidden">
+          <div class="bg-white rounded-lg shadow-lg p-8 w-full max-w-md relative">
+            <button onclick="document.getElementById('aclModal').classList.add('hidden')" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">&times;</button>
+            <h3 class="text-lg font-bold mb-4">Add ACL to User</h3>
+            <form method="POST" action="/tac_plus/add_acl_to_user/" class="space-y-4">
+              <input type="hidden" name="user_id" value="{{ user.id }}">
+              <div>
+                <label for="access" class="block text-gray-700 font-bold mb-1">Access</label>
+                <select id="access" name="access" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400">
+                  <option value="permit">Permit</option>
+                  <option value="deny">Deny</option>
+                </select>
+              </div>
+              <div>
+                <label for="ip" class="block text-gray-700 font-bold mb-1">IP Address</label>
+                <input type="text" id="ip" name="ip" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400" placeholder="e.g. 192.168.1.0">
+              </div>
+              <div>
+                <label for="mask" class="block text-gray-700 font-bold mb-1">Mask</label>
+                <input type="text" id="mask" name="mask" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400" placeholder="e.g. 24">
+              </div>
+              <div class="flex justify-end">
+                <button type="button" onclick="document.getElementById('aclModal').classList.add('hidden')" class="mr-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancel</button>
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Add ACL</button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
-      <div class="col-1"></div>
     </div>
   </body>
 </html>

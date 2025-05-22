@@ -1,0 +1,68 @@
+#!/usr/local/sbin/tac_plus-ng
+id = spawnd {
+    background = no
+    listen = { port = {{ listen_port }} }
+    spawn {
+        instances min = {{ min_instances }}
+        instances max = {{ max_instances }}
+    }
+}
+
+id = tac_plus-ng {
+
+    # Logging
+    log access { destination = {{ authentication_log }} }
+    log accounting { destination = {{ accounting_log }} }
+    log authorization { destination = {{ authorization_log }} }
+
+    # Log files
+    access log = access
+    accounting log = accounting
+    authorization log = authorization
+
+    retire limit = 3000
+
+    # Define external authentication module
+    #mavis module = external {
+    #    exec = {{ mavis_module }}
+    #}
+
+    # Authentication backend
+    #login backend = {{ login_backend }}
+
+    # Default host for all connections
+    host = world {
+        address = {{ default_host }}
+        key = "{{ authentication_key }}"
+        {% if default_banner %}
+        welcome banner = "\n{{ default_banner }}\n"
+        {% endif %}
+    }
+
+    {# Groups #}
+    {% for group in groups %}
+    profile {{ group.name }} {
+        enable 15 = login
+        script {
+            if (service == shell)
+                if (cmd == "")
+                    {{ group.cmd_default_policy }}
+            {% for cmd in group.cmds %}
+            if (cmd =~ "{{ cmd.regex }}") {{cmd.action}}
+            {% endfor %}
+        }
+    }
+    {% endfor %}
+
+    {# Users #}
+    {% for user in users %}
+    user {{ user.username }} {
+        password {
+            login = pbkdf2 "{{ user.encrypted_password }}"
+        }
+        {% if user.groups %}
+        {{ user.groups }}
+        {% endif %}
+    }
+    {% endfor %}
+}

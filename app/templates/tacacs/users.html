@@ -1,41 +1,57 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>TACACS+ configuration and monitoring utility</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
-  <body>
-    <div class="header">
-      <div class="link"><a href="/tac_plus/configurations/">Configurations</a></div>
-      <div class="link"><a href="/tac_plus/users/">Users</a></div>
-      <div class="link"><a href="/tac_plus/groups/">Groups</a></div>
-      <div class="link"><a href="/tac_plus/commands/">Commands</a></div>
-      <div class="link"><a href="/tac_plus/system/">System</a></div>
-      <div class="link"><a href="/statistics/">Statistics</a></div>
-      <div class="link"><a href="/auth/logout/">Logout</a></div>
-    </div>
-    <div class="row">
-      <div class="col-1"></div>
-      <div class="col-10">
-        <a href="/tac_plus/add_user/" class="btn btn-primary form-control">Add new user</a>
-        <table class="table table-dark table-striped">
+  <body class="bg-gray-100 min-h-screen">
+    {% include 'auth/_navigation.html' %}
+    <div class="flex justify-center mt-10">
+      <div class="w-full max-w-4xl bg-white rounded shadow p-8">
+        <button type="button" onclick="document.getElementById('addUserModal').classList.remove('hidden')" class="block mb-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-center">Add new user</button>
+        <div id="addUserModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 hidden">
+          <div class="bg-white rounded-lg shadow-lg p-8 w-full max-w-md relative">
+            <button onclick="document.getElementById('addUserModal').classList.add('hidden')" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">&times;</button>
+            <h3 class="text-lg font-bold mb-4">Add New User</h3>
+            <form method="POST" action="/tac_plus/add_user/" class="space-y-4">
+              <div>
+                <label for="user_name" class="block text-gray-700 font-bold mb-1">User name</label>
+                <input type="text" id="user_name" name="user_name" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400" required>
+              </div>
+              <div>
+                <label for="password" class="block text-gray-700 font-bold mb-1">Password</label>
+                <input type="password" id="password" name="password" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400" required>
+              </div>
+              <div class="flex justify-end">
+                <button type="button" onclick="document.getElementById('addUserModal').classList.add('hidden')" class="mr-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">Cancel</button>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Add User</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <table class="min-w-full bg-white border border-gray-300 rounded">
           <thead>
-            <tr>
-              <td>User name</td>
-              <td>Action</td>
+            <tr class="bg-gray-200">
+              <th class="py-2 px-4 border-b">User name</th>
+              <th class="py-2 px-4 border-b">Action</th>
             </tr>
           </thead>
           <tbody>
             {% for user in users %}
-              <tr>
-                <td>{{ user.name }}</td>
-                <td><a href="/tac_plus/delete_user/?user_id={{ user.id }}">Delete</a><br/><a href="/tac_plus/edit_user/?user_id={{ user.id }}">Edit</a></td>
+              <tr class="border-b hover:bg-gray-100">
+                <td class="py-2 px-4">{{ user.name }}</td>
+                <td class="py-2 px-4">
+                  <form method="POST" action="/tac_plus/delete_user/" style="display:inline">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <button type="submit" class="text-red-600 hover:underline bg-transparent border-none p-0 m-0 cursor-pointer">Delete</button>
+                  </form> |
+                  <a href="/tac_plus/edit_user/?user_id={{ user.id }}" class="text-blue-600 hover:underline">Edit</a>
+                </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
-      <div class="col-1"></div>
     </div>
   </body>
 </html>

@@ -1,45 +1,86 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>TACACS+ configuration and monitoring utility</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
-  <body>
-    <div class="header">
-      <div class="link"><a href="/tac_plus/configurations/">Configurations</a></div>
-      <div class="link"><a href="/tac_plus/users/">Users</a></div>
-      <div class="link"><a href="/tac_plus/groups/">Groups</a></div>
-      <div class="link"><a href="/tac_plus/commands/">Commands</a></div>
-      <div class="link"><a href="/tac_plus/system/">System</a></div>
-      <div class="link"><a href="/statistics/">Statistics</a></div>
-      <div class="link"><a href="/auth/logout/">Logout</a></div>
-    </div>
-    <div class="row">
-      <div class="col-1"></div>
-      <div class="col-10">
-        <a href="/tac_plus/add_command/" class="btn btn-primary form-control">Add new command</a>
-        <table class="table table-dark table-striped">
+  <body class="bg-gray-100 min-h-screen">
+    {% include 'auth/_navigation.html' %}
+    <div class="flex justify-center mt-10">
+      <div class="w-full max-w-4xl bg-white rounded shadow p-8">
+        <!-- Add Command Modal Trigger -->
+        <button id="openAddCommandModal" class="block mb-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-center">Add new command</button>
+
+        <!-- Add Command Modal -->
+        <div id="addCommandModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 hidden">
+          <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative">
+            <button id="closeAddCommandModal" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">&times;</button>
+            <h2 class="text-xl font-bold mb-4">Add New Command</h2>
+            <form method="POST" action="/tac_plus/add_command/" class="space-y-4">
+              <div>
+                <label for="command_name" class="block text-gray-700 font-bold mb-2">Command name</label>
+                <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="command_name" name="command_name" placeholder="Command" required>
+              </div>
+              <div>
+                <label for="regex" class="block text-gray-700 font-bold mb-2">Regex</label>
+                <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="regex" name="regex" placeholder="Regex" required>
+              </div>
+              <div>
+                <label for="action" class="block text-gray-700 font-bold mb-1">Action</label>
+                <select id="action" name="action" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring focus:border-blue-400">
+                  <option value="permit">Permit</option>
+                  <option value="deny">Deny</option>
+                </select>
+              </div>
+              <div>
+                <label for="message" class="block text-gray-700 font-bold mb-2">Message</label>
+                <input type="text" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring focus:border-blue-400" id="message" name="message" placeholder="Message">
+              </div>
+              <div class="flex justify-end">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Add Command</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <script>
+          const openCmdBtn = document.getElementById('openAddCommandModal');
+          const closeCmdBtn = document.getElementById('closeAddCommandModal');
+          const cmdModal = document.getElementById('addCommandModal');
+          openCmdBtn.addEventListener('click', () => cmdModal.classList.remove('hidden'));
+          closeCmdBtn.addEventListener('click', () => cmdModal.classList.add('hidden'));
+          window.addEventListener('click', (e) => {
+            if (e.target === cmdModal) cmdModal.classList.add('hidden');
+          });
+        </script>
+
+        <table class="min-w-full bg-white border border-gray-300 rounded">
           <thead>
-            <tr>
-              <td>Command name</td>
-              <td>Permit regex</td>
-              <td>Deny regex</td>
-              <td>Action</td>
+            <tr class="bg-gray-200">
+              <th class="py-2 px-4 border-b">Command name</th>
+              <th class="py-2 px-4 border-b">Regex</th>
+              <th class="py-2 px-4 border-b">Allow/Deny</th>
+              <th class="py-2 px-4 border-b">Action</th>
             </tr>
           </thead>
           <tbody>
             {% for command in commands %}
-              <tr>
-                <td>{{ command.name }}</td>
-                <td>{{ command.permit_regex }}</td>
-                <td>{{ command.deny_regex }}</td>
-                <td><a href="/tac_plus/delete_command/?command_id={{ command.id }}">Delete</a><br/><a href="/tac_plus/edit_command/?command_id={{ command.id }}">Edit</a></td>
+              <tr class="border-b hover:bg-gray-100">
+                <td class="py-2 px-4">{{ command.name }}</td>
+                <td class="py-2 px-4">{{ command.regex }}</td>
+                <td class="py-2 px-4">{{ command.action }}</td>
+                <td class="py-2 px-4">
+                  <form method="POST" action="/tac_plus/delete_command/" style="display:inline">
+                    <input type="hidden" name="command_id" value="{{ command.id }}">
+                    <button type="submit" class="text-red-600 hover:underline bg-transparent border-none p-0 m-0 cursor-pointer">Delete</button>
+                  </form> |
+                  <a href="/tac_plus/edit_command/?command_id={{ command.id }}" class="text-blue-600 hover:underline">Edit</a>
+                </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
-      <div class="col-1"></div>
     </div>
   </body>
 </html>

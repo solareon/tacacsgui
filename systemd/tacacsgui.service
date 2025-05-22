@@ -8,9 +8,11 @@ Type=simple
 Restart=always
 RestartSec=1
 User=www-data
+Group=www-data
 
 WorkingDirectory=/opt/tacacsgui/
-ExecStart=/usr/bin/python3 /opt/tacacsgui/run.py
+ExecStart=/opt/tacacsgui/venv/bin/python3 /opt/tacacsgui/run.py
+Environment=PATH=/opt/tacacsgui/venv/bin
 
 [Install]
 WantedBy=multi-user.target
